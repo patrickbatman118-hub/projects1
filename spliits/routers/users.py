@@ -18,11 +18,14 @@ def signup(user: schemas.user,db: session = Depends(db.get_db)):
             db.add(new_user)
             db.commit()
             db.refresh(new_user)
+            app.logger.info('User Created')
             return new_user
         else:
+            app.logger.info('User Already Exists')
             raise app.EmailAlreadyExists
-    except HTTPException:
+    except (HTTPException,app.EmailAlreadyExists):
         raise
     except Exception:
+        app.logger.exception('Error creating user')
         db.rollback()
-        raise HTTPException(Status_code=500, detail={'Message': 'Error creating user'})
+        raise HTTPException(status_code=500, detail={'Message': 'Error creating user'})
