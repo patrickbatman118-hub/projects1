@@ -33,9 +33,11 @@ def create_refresh_token(data: dict):
 def login(request: OAuth2PasswordRequestForm = Depends(), db: session = Depends(db.get_db)):
     user = db.query(models.User).filter(models.User.email == request.username).first()
     if not user:
-        raise
+        app.logger.warning(f'No User Exists: {request.username}')
+        raise app.InvalidCredentials
     if not bcrypt.checkpw(request.password.encode(),user.password.encode()):
-        raise
+        app.logger.warning(f'Invalid Password: {request.username}')
+        raise app.InvalidCredentials
     access_token = create_access_token(data={"sub": user.id})
     refresh_token = create_refresh_token(data={"sub": user.id})
     return {'acces_token': access_token, 'refresh_token': refresh_token, 'token_type': 'bearer'}
@@ -45,7 +47,8 @@ def login(request: OAuth2PasswordRequestForm = Depends(), db: session = Depends(
 def refersh_token(refresh_token: str):
     payload = jwt.decode(refresh_token, secret_key, algorithms=[algorithm])
     if not payload['type'] != 'refresh':
-        raise
+        app.logger.warning(f'Invalid Token: {refresh_token}')
+        raise app.InvalidCredentials
     user_id = payload['sub']
     access_token = create_access_token(data={"sub": user_id})
     return {'acces_token': access_token, 'token_type': 'bearer'}

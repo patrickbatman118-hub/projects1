@@ -16,6 +16,12 @@ class user(BaseModel):
             return self
         else:
             raise ValueError('Password does not match')
+    
+class UserResponse(BaseModel):
+    name: str
+    email: EmailStr
+    pfp: str
+
         
 
 

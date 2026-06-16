@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordBearer
 import os
 from dotenv import load_dotenv
 from jwt.exceptions import InvalidTokenError
-from app import db,models
+from app import db,models,app
 from sqlalchemy.orm import session
 
 
@@ -24,10 +24,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: session = Depends(
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         user_id = payload.get("sub")
         if user_id is None:
-            raise 
+            raise app.NoUserExists
         user = db.query(models.User).filter(models.User.id == user_id).first()
         if user is None:
-            raise 
+            raise app.NoUserExists
         return user
     except InvalidTokenError:
         raise 
