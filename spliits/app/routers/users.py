@@ -8,9 +8,9 @@ from app.security.authentication import create_access_token, create_refresh_toke
 router = APIRouter()
 
 @router.post('/signup')
-def signup(user: schemas.user,db: session = Depends(db.get_db)):
+def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
     try:
-        get_user = db.query(models.User).filter(models.User.email == user.email).first()
+        get_user = db.query(models.users.User).filter(models.users.User.email == user.email).first()
         if not get_user:
             new_user = hash_password(user)
             db.add(new_user)
@@ -31,10 +31,10 @@ def signup(user: schemas.user,db: session = Depends(db.get_db)):
         raise HTTPException(status_code=500, detail={'Message': 'Error creating user'})
     
 
-@router.get('/user/{id}', response_model=schemas.UserResponse)
+@router.get('/user/{id}', response_model=schemas.users.UserResponse)
 def get_user(id: int, db: session = Depends(db.get_db)):
-    user = db.query(models.User).filter(models.User.id == id).first()
+    user = db.query(models.users.User).filter(models.users.User.id == id).first()
     if not user:
-        app.logger.warining(f'No User Exists: {id}')
+        app.logger.warning(f'No User Exists: {id}')
         raise app.NoUserExists
     return user

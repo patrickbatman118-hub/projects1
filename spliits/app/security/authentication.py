@@ -4,7 +4,7 @@ from app import app,db,models,schemas
 from sqlalchemy.orm import session
 import bcrypt
 router = APIRouter()
-import jwt
+from jose import jwt
 from datetime import timedelta,timezone,datetime
 import os
 from dotenv import load_dotenv
@@ -31,16 +31,16 @@ def create_refresh_token(data: dict):
 
 @router.post('/login')
 def login(request: OAuth2PasswordRequestForm = Depends(), db: session = Depends(db.get_db)):
-    user = db.query(models.User).filter(models.User.email == request.username).first()
+    user = db.query(models.users.User).filter(models.users.User.email == request.username).first()
     if not user:
         app.logger.warning(f'No User Exists: {request.username}')
         raise app.InvalidCredentials
     if not bcrypt.checkpw(request.password.encode(),user.password.encode()):
         app.logger.warning(f'Invalid Password: {request.username}')
         raise app.InvalidCredentials
-    access_token = create_access_token(data={"sub": user.id})
-    refresh_token = create_refresh_token(data={"sub": user.id})
-    return {'acces_token': access_token, 'refresh_token': refresh_token, 'token_type': 'bearer'}
+    access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    return {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'bearer'}
 
 
 @router.post('/refersh_token')

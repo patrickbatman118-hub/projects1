@@ -6,3 +6,6 @@ class NoUserExists(Exception):
 
 class InvalidCredentials(Exception):
     pass
+
+class NoPoolExist(Exception):
+    pass
