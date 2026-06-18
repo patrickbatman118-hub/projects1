@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import session
 from .. import app,db
 from ..models.pools import pool as models
-from ..schemas.pools import pool as schemas
+from ..schemas import pools
 from ..security.OAuth2 import get_current_active_user
 
 
@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 @router.post('/createpool')
-def create_pool(pool: schemas, db: session = Depends(db.get_db),current_user = Depends(get_current_active_user)):
+def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user = Depends(get_current_active_user)):
     try:
         new_pool = models(**pool.model_dump())
         new_pool.host_id = current_user.id
@@ -24,12 +24,12 @@ def create_pool(pool: schemas, db: session = Depends(db.get_db),current_user = D
         raise app.HTTPException(status_code=500, detail={'Message': 'Error creating pool'})
 
 
-@router.post('/deletepool')
-def del_pool(db: session = Depends(db.get_db),current_user = Depends(get_current_active_user)):
+@router.delete('/deletepool/{id}')
+def del_pool(id: int,db: session = Depends(db.get_db),current_user = Depends(get_current_active_user)):
     try:      
-        pool = db.query(models).filter(models.host.id == current_user.id).first()
+        pool = db.query(models).filter(models.host_id == current_user.id, models.id == id).first()
         if not pool:
-            app.logger.warning(f'No Pool Exists: {current_user.id}')
+            app.logger.warning(f'No Pool Exists: {id}')
             raise app.NoPoolExist
         db.delete(pool)
         db.commit()
@@ -42,12 +42,12 @@ def del_pool(db: session = Depends(db.get_db),current_user = Depends(get_current
         raise HTTPException(status_code=500, detail={'Message': 'Error deleting pool'})
 
 
-@router.post('/updatepool')
-def update_pool(pool: schemas.updatepool, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
+@router.put('/updatepool/{id}')
+def update_pool(id:int,pool: pools.updatepool, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
     try:    
-        get_pool = db.query(models).filter(models.host.id == current_user.id).first()
+        get_pool = db.query(models).filter(models.host_id == current_user.id, models.id == id).first()
         if not pool:
-            app.logger.warning(f'No Pool Exists: {current_user.id}')
+            app.logger.warning(f'No Pool Exists: {id}')
             raise app.NoPoolExist
         get_pool.title = pool.title
         get_pool.description = pool.description

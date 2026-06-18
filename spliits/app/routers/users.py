@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from app import schemas, models,db,app
 from sqlalchemy.orm import session
 from app.security.hash_password import hash_password
 from app.security.authentication import create_access_token, create_refresh_token
 from app.security.OAuth2 import get_current_active_user
+from fastapi.responses import RedirectResponse
 
 
 router = APIRouter()
@@ -30,7 +31,11 @@ def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
         app.logger.exception(f'Error creating user: {user.email}')
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error creating user'})
-    
+
+@router.get('/uers',response_model=list[schemas.users.UserResponse])
+def get_users(db: session = Depends(db.get_db)):
+    users = db.query(models.users.User).all()
+    return users    
 
 @router.get('/user/{id}', response_model=schemas.users.UserResponse)
 def get_user(id: int, db: session = Depends(db.get_db)):
@@ -40,8 +45,8 @@ def get_user(id: int, db: session = Depends(db.get_db)):
         raise app.NoUserExists
     return user
 
-@router.post('/deleteuser')
-def del_user(db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
+@router.delete('/deleteuser')
+def del_user( db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
     try:        
         get_user = db.query(models.users.User).filter(models.users.User.id == current_user.id).first()
         if not get_user:
@@ -49,7 +54,10 @@ def del_user(db: session = Depends(db.get_db), current_user = Depends(get_curren
             raise app.NoUserExists
         db.delete(get_user)
         db.commit()
-        return 'deleted'
+        res = RedirectResponse(url='/login',status_code=303)
+        res.delete_cookie(key='access_token')
+        res.delete_cookie(key='refresh_token')
+        return res
     except app.NoUserExists:
         raise
     except Exception:
@@ -57,7 +65,7 @@ def del_user(db: session = Depends(db.get_db), current_user = Depends(get_curren
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error deleting user'})
     
-@router.post('/updateuser')
+@router.put('/updateuser')
 def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
     try:
         get_user = db.query(models.users.User).filter(models.users.User.id == current_user.id).first()
@@ -75,3 +83,11 @@ def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db)
         app.logger.exception(f'Error updating user: {current_user.id}')
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error updating user'})
+    
+@router.post('/signout')
+def signout():
+    response = RedirectResponse(url='/login',status_code=303)
+    response.delete_cookie(key='access_token')
+    response.delete_cookie(key='refresh_token')
+    return response
+

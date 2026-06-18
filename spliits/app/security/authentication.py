@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from app import app,db,models,schemas
 from sqlalchemy.orm import session
@@ -29,7 +29,10 @@ def create_refresh_token(data: dict):
 
 
 
-@router.post('/login')
+@router.api_route("/login", methods=["GET", "POST"])
+def login(request: Request):
+    if request.method == "GET":
+        return {"message": "Return the HTML login form"}
 def login(request: OAuth2PasswordRequestForm = Depends(), db: session = Depends(db.get_db)):
     user = db.query(models.users.User).filter(models.users.User.email == request.username).first()
     if not user:
