@@ -3,6 +3,7 @@ from app import schemas, models,db,app
 from sqlalchemy.orm import session
 from app.security.hash_password import hash_password
 from app.security.authentication import create_access_token, create_refresh_token
+from app.security.OAuth2 import get_current_active_user
 
 
 router = APIRouter()
@@ -38,3 +39,39 @@ def get_user(id: int, db: session = Depends(db.get_db)):
         app.logger.warning(f'No User Exists: {id}')
         raise app.NoUserExists
     return user
+
+@router.post('/deleteuser')
+def del_user(db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
+    try:        
+        get_user = db.query(models.users.User).filter(models.users.User.id == current_user.id).first()
+        if not get_user:
+            app.logger.warning(f'No User Exists: {current_user.id}')
+            raise app.NoUserExists
+        db.delete(get_user)
+        db.commit()
+        return 'deleted'
+    except app.NoUserExists:
+        raise
+    except Exception:
+        app.logger.exception(f'Error deleting user: {current_user.id}')
+        db.rollback()
+        raise HTTPException(status_code=500, detail={'Message': 'Error deleting user'})
+    
+@router.post('/updateuser')
+def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
+    try:
+        get_user = db.query(models.users.User).filter(models.users.User.id == current_user.id).first()
+        if not get_user:
+            app.logger.warning(f'No User Exists: {current_user.id}')
+            raise app.NoUserExists
+        get_user.name = user.name
+        get_user.pfp = user.pfp
+        db.commit()
+        db.refresh(get_user)
+        return get_user
+    except app.NoUserExists:
+        raise
+    except Exception:
+        app.logger.exception(f'Error updating user: {current_user.id}')
+        db.rollback()
+        raise HTTPException(status_code=500, detail={'Message': 'Error updating user'})

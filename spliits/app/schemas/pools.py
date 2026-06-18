@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 from ..utils.enum import PoolCategory
+from typing import Optional
+
 
 
 
@@ -29,3 +31,8 @@ class PoolResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class updatepool(BaseModel):
+    title: Optional[str]
+    description: Optional[str]
+    total_cost: Optional[float]
+    max_members: Optional[int]

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import session
 from .. import app,db
 from ..models.pools import pool as models
@@ -26,11 +26,42 @@ def create_pool(pool: schemas, db: session = Depends(db.get_db),current_user = D
 
 @router.post('/deletepool')
 def del_pool(db: session = Depends(db.get_db),current_user = Depends(get_current_active_user)):
-    pool = db.query(models).filter(models.host.id == current_user.id).first()
-    if not pool:
-        app.logger.warning(f'No Pool Exists: {current_user.id}')
-        raise app.NoPoolExist
-    db.delete(pool)
-    db.commit()
-    return 'deleted'
+    try:      
+        pool = db.query(models).filter(models.host.id == current_user.id).first()
+        if not pool:
+            app.logger.warning(f'No Pool Exists: {current_user.id}')
+            raise app.NoPoolExist
+        db.delete(pool)
+        db.commit()
+        return 'deleted'
+    except app.NoPoolExist:
+        raise
+    except Exception:
+        app.logger.exception(f'Error deleting pool: {pool}')
+        db.rollback()
+        raise HTTPException(status_code=500, detail={'Message': 'Error deleting pool'})
 
+
+@router.post('/updatepool')
+def update_pool(pool: schemas.updatepool, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
+    try:    
+        get_pool = db.query(models).filter(models.host.id == current_user.id).first()
+        if not pool:
+            app.logger.warning(f'No Pool Exists: {current_user.id}')
+            raise app.NoPoolExist
+        get_pool.title = pool.title
+        get_pool.description = pool.description
+        get_pool.total_cost = pool.total_cost
+        get_pool.max_members = pool.max_members
+        db.commit()
+        db.refresh(get_pool)
+        return get_pool
+    except app.NoPoolExist:
+        raise
+    except Exception:
+        app.logger.exception(f'Error updating pool: {pool}')
+        db.rollback()
+        raise HTTPException(status_code=500, detail={'Message': 'Error updating pool'})
+    
+
+    

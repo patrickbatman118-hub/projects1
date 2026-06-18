@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 from enum import Enum
 from datetime import datetime
 from .pools import PoolResponse as pool
+from typing import Optional
 
 
 
@@ -31,6 +32,10 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class userupdate(BaseModel):
+    name: Optional[str]
+    pfp: Optional[str]
 
 
 
