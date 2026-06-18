@@ -6,7 +6,7 @@ from ..schemas import pools
 from ..security.OAuth2 import get_current_active_user
 
 
-router = APIRouter()
+router = APIRouter(tags=['pools'])
 
 
 @router.post('/createpool')
@@ -62,6 +62,19 @@ def update_pool(id:int,pool: pools.updatepool, db: session = Depends(db.get_db),
         app.logger.exception(f'Error updating pool: {pool}')
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error updating pool'})
+    
+@router.get('/pools', response_model=list[pools.PoolResponse])
+def get_pools(db: session = Depends(db.get_db)):
+    pools = db.query(models).filter(models.is_active == True).all()
+    return pools
+
+@router.get('/pool/mypools', response_model=list[pools.PoolResponse])
+def get_pool( db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
+    pools = db.query(models).filter( models.is_active == True,models.host_id == current_user.id).all()
+    return pools
+             
+
+
     
 
     

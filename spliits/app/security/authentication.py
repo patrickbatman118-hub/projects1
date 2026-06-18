@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app import app,db,models,schemas
 from sqlalchemy.orm import session
 import bcrypt
-router = APIRouter()
+router = APIRouter(tags=['authentication'])
 from jose import jwt
 from datetime import timedelta,timezone,datetime
 import os
@@ -28,15 +28,19 @@ def create_refresh_token(data: dict):
     return encoded_jwt
 
 
-
-@router.api_route("/login", methods=["GET", "POST"])
+@router.get('/login')
 def login(request: Request):
     if request.method == "GET":
         return {"message": "Return the HTML login form"}
+    
+@router.post("/login")
 def login(request: OAuth2PasswordRequestForm = Depends(), db: session = Depends(db.get_db)):
     user = db.query(models.users.User).filter(models.users.User.email == request.username).first()
     if not user:
         app.logger.warning(f'No User Exists: {request.username}')
+        raise app.InvalidCredentials
+    if user.disabled:
+        app.logger.info(f'User disabled: {user.id}')
         raise app.InvalidCredentials
     if not bcrypt.checkpw(request.password.encode(),user.password.encode()):
         app.logger.warning(f'Invalid Password: {request.username}')
@@ -55,4 +59,17 @@ def refersh_token(refresh_token: str):
     user_id = payload['sub']
     access_token = create_access_token(data={"sub": user_id})
     return {'acces_token': access_token, 'token_type': 'bearer'}
+
+
+# @router.post("/signout")
+# async def signout(token: str ):
+#     # 1. Decode the token to get the jti (unique ID)
+#     payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+#     jti = payload.get("jti")
+    
+#     # 2. Add this jti to your Redis Denylist/Blacklist
+#     # This ensures that even if someone has the token, it won't work anymore
+#     await redis.setex(f"blacklist:{jti}", TOKEN_EXPIRES_IN, "revoked")
+    
+#     return {"message": "Successfully signed out"}
 

@@ -7,7 +7,7 @@ from app.security.OAuth2 import get_current_active_user
 from fastapi.responses import RedirectResponse
 
 
-router = APIRouter()
+router = APIRouter(tags=['users'])
 
 @router.post('/signup')
 def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
@@ -34,12 +34,12 @@ def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
 
 @router.get('/uers',response_model=list[schemas.users.UserResponse])
 def get_users(db: session = Depends(db.get_db)):
-    users = db.query(models.users.User).all()
+    users = db.query(models.users.User).filter(models.users.User.disabled == False).all()
     return users    
 
 @router.get('/user/{id}', response_model=schemas.users.UserResponse)
 def get_user(id: int, db: session = Depends(db.get_db)):
-    user = db.query(models.users.User).filter(models.users.User.id == id).first()
+    user = db.query(models.users.User).filter(models.users.User.id == id, models.users.User.disabled == False).first()
     if not user:
         app.logger.warning(f'No User Exists: {id}')
         raise app.NoUserExists
@@ -84,10 +84,5 @@ def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db)
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error updating user'})
     
-@router.post('/signout')
-def signout():
-    response = RedirectResponse(url='/login',status_code=303)
-    response.delete_cookie(key='access_token')
-    response.delete_cookie(key='refresh_token')
-    return response
+
 
