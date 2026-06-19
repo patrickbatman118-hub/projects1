@@ -4,6 +4,7 @@ from .. import app,db
 from ..models.pools import pool as models
 from ..schemas import pools
 from ..security.OAuth2 import get_current_active_user
+from sqlalchemy import func
 
 
 router = APIRouter(tags=['pools'])
@@ -12,12 +13,22 @@ router = APIRouter(tags=['pools'])
 @router.post('/createpool')
 def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user = Depends(get_current_active_user)):
     try:
+        count = db.query(func.count(models.id)).filter(models.host_id == current_user.id,func.extract('day', func.age(func.now(), models.created_at)) <= 30).scalar()
+        countday = db.query(func.count(models.id)).filter(models.host_id == current_user.id,func.extract('day', func.age(func.now(), models.created_at)) <= 1).scalar()
+        if count > 3 :
+            app.logger.warning(f'Repeated pool creations from user: {current_user.id}')
+            raise HTTPException(status_code=429, detail='Too many pool creation requests in a month')
+        if countday > 1 :
+            app.logger.warning(f'Repeated pool creations from user: {current_user.id}')
+            raise HTTPException(status_code=429, detail='Too many pool creation requests in a day')
         new_pool = models(**pool.model_dump())
         new_pool.host_id = current_user.id
         db.add(new_pool)
         db.commit()
         db.refresh(new_pool)
         return new_pool
+    except HTTPException:
+        raise
     except Exception:
         app.logger.exception(f'Error creating pool: {pool}')
         db.rollback()
