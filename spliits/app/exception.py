@@ -9,3 +9,6 @@ class InvalidCredentials(Exception):
 
 class NoPoolExist(Exception):
     pass
+
+class AlreadyInThePool(Exception):
+    pass

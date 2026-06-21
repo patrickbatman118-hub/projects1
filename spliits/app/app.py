@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
-from app.routers import users, pools
+from app.routers import users, pools, requests
 from app.security import authentication
-from .exception import EmailAlreadyExists,NoUserExists,InvalidCredentials,NoPoolExist
+from .exception import EmailAlreadyExists,NoUserExists,InvalidCredentials,NoPoolExist,AlreadyInThePool
 from fastapi.responses import JSONResponse
 import logging
 
@@ -9,6 +9,7 @@ app = FastAPI()
 app.include_router(users.router)
 app.include_router(authentication.router)
 app.include_router(pools.router)
+app.include_router(requests.router)
 
 
 logging.basicConfig(
@@ -48,5 +49,9 @@ def invalid_credentials_exception_handler(request, exc):
 @app.exception_handler(NoPoolExist)
 def No_Pool_Found(request, exc):
     return JSONResponse(status_code=404, content={'Message': 'No Pool Found'})
+
+@app.exception_handler(AlreadyInThePool)
+def already_in_pool_exception_handler(request, exc):
+    return JSONResponse(status_code=409, content={'Message': 'Already in the pool'})
 
 

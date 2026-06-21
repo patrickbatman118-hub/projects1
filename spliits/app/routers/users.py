@@ -5,7 +5,7 @@ from app.security.hash_password import hash_password
 from app.security.authentication import create_access_token, create_refresh_token
 from app.security.OAuth2 import get_current_active_user
 from fastapi.responses import RedirectResponse
-
+from uuid import UUID
 
 router = APIRouter(tags=['users'])
 
@@ -16,11 +16,12 @@ def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
         if not get_user:
             new_user = hash_password(user)
             db.add(new_user)
-            db.commit()
+            db.flush()
             db.refresh(new_user)
             app.logger.info(f'User Created: {user.email}')
-            access_token = create_access_token(data={"sub": user.id})
-            refresh_token = create_refresh_token(data={"sub": user.id})
+            access_token = create_access_token(data={"sub": str(new_user.user_id)})
+            refresh_token = create_refresh_token(data={"sub": str(new_user.user_id)})
+            db.commit()
             return {'acces_token': access_token, 'refresh_token': refresh_token, 'token_type': 'bearer'}
         else:
             app.logger.info(f'User Already Exists: {user.email}')
@@ -38,8 +39,8 @@ def get_users(db: session = Depends(db.get_db)):
     return users    
 
 @router.get('/user/{id}', response_model=schemas.users.UserResponse)
-def get_user(id: int, db: session = Depends(db.get_db)):
-    user = db.query(models.users.User).filter(models.users.User.id == id, models.users.User.disabled == False).first()
+def get_user(id: UUID, db: session = Depends(db.get_db)):
+    user = db.query(models.users.User).filter(models.users.User.user_id == id, models.users.User.disabled == False).first()
     if not user:
         app.logger.warning(f'No User Exists: {id}')
         raise app.NoUserExists
@@ -48,9 +49,9 @@ def get_user(id: int, db: session = Depends(db.get_db)):
 @router.delete('/deleteuser')
 def del_user( db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
     try:        
-        get_user = db.query(models.users.User).filter(models.users.User.id == current_user.id).first()
+        get_user = db.query(models.users.User).filter(models.users.User.user_id == current_user.user_id).first()
         if not get_user:
-            app.logger.warning(f'No User Exists: {current_user.id}')
+            app.logger.warning(f'No User Exists: {current_user.user_id}')
             raise app.NoUserExists
         db.delete(get_user)
         db.commit()
@@ -61,16 +62,16 @@ def del_user( db: session = Depends(db.get_db), current_user = Depends(get_curre
     except app.NoUserExists:
         raise
     except Exception:
-        app.logger.exception(f'Error deleting user: {current_user.id}')
+        app.logger.exception(f'Error deleting user: {current_user.user_id}')
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error deleting user'})
     
 @router.put('/updateuser')
 def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
     try:
-        get_user = db.query(models.users.User).filter(models.users.User.id == current_user.id).first()
+        get_user = db.query(models.users.User).filter(models.users.User.user_id == current_user.user_id).first()
         if not get_user:
-            app.logger.warning(f'No User Exists: {current_user.id}')
+            app.logger.warning(f'No User Exists: {current_user.user_id}')
             raise app.NoUserExists
         get_user.name = user.name
         get_user.pfp = user.pfp
@@ -80,7 +81,7 @@ def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db)
     except app.NoUserExists:
         raise
     except Exception:
-        app.logger.exception(f'Error updating user: {current_user.id}')
+        app.logger.exception(f'Error updating user: {current_user.user_id}')
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error updating user'})
     

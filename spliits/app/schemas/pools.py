@@ -17,6 +17,7 @@ class UserResponsePool(BaseModel):
     name: str
     email: str
     pfp: str
+    role: str
 
 
 class PoolResponse(BaseModel):
@@ -26,7 +27,7 @@ class PoolResponse(BaseModel):
     max_members: int
     category: PoolCategory
     is_active: bool
-    host: UserResponsePool
+    people: UserResponsePool
 
     class Config:
         from_attributes = True

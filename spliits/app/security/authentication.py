@@ -40,13 +40,13 @@ def login(request: OAuth2PasswordRequestForm = Depends(), db: session = Depends(
         app.logger.warning(f'No User Exists: {request.username}')
         raise app.InvalidCredentials
     if user.disabled:
-        app.logger.info(f'User disabled: {user.id}')
+        app.logger.info(f'User disabled: {user.user_id}')
         raise app.InvalidCredentials
     if not bcrypt.checkpw(request.password.encode(),user.password.encode()):
         app.logger.warning(f'Invalid Password: {request.username}')
         raise app.InvalidCredentials
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    access_token = create_access_token(data={"sub": str(user.user_id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.user_id)})
     return {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'bearer'}
 
 

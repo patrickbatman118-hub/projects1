@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from app import db,models,app
 from sqlalchemy.orm import session
-
+from uuid import UUID
 
 load_dotenv()
 
@@ -26,12 +26,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: session = Depends(
         if user_id is None:
             app.logger.warning('No User Exists')
             raise app.InvalidCredentials
-        user = db.query(models.users.User).filter(models.users.User.id == int(user_id)).first()
+        user = db.query(models.users.User).filter(models.users.User.user_id == UUID(user_id)).first()
         if user is None:
             app.logger.warning('No User Exists')
             raise app.InvalidCredentials
         if user.disabled:
-            app.logger.info(f'User disabled: {user.id}')
+            app.logger.info(f'User disabled: {user.user_id}')
             raise app.InvalidCredentials
         return user
     except JWTError as e: 
