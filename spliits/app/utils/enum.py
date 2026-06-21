@@ -14,3 +14,14 @@ class PoolCategory(str, Enum):
     BUSINESS = "Business & Finance"
     SHOPPING = "Shopping & Memberships"
     OTHER = "Other"
+
+
+class request_status(str, Enum):
+    REQUESTED = 'requested'
+    ACCEPTED = 'accepted'
+    REJECTED = 'rejected'
+
+class pool_role(str,Enum):
+    HOST = 'host'
+    MEMBER = 'member'
+

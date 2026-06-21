@@ -83,6 +83,8 @@ def get_pools(db: session = Depends(db.get_db)):
 def get_pool( db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
     pools = db.query(models).filter( models.is_active == True,models.host_id == current_user.id).all()
     return pools
+
+
              
 
 

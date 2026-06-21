@@ -85,4 +85,3 @@ def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db)
         raise HTTPException(status_code=500, detail={'Message': 'Error updating user'})
     
 
-
