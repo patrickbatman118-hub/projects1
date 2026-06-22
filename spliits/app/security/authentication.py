@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from app import app,db,models,schemas
 from sqlalchemy.orm import session
@@ -9,21 +9,25 @@ from datetime import timedelta,timezone,datetime
 import os
 from dotenv import load_dotenv
 load_dotenv()
+import uuid
+from ..models.jwt import revoked_tokens
+from sqlalchemy.exc import IntegrityError
+from .OAuth2 import get_current_active_user
 
 secret_key=os.getenv('SECRET_KEY')
 algorithm=os.getenv('ALGORITHM')
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire, "type": 'access'})
+    expire = datetime.now(timezone.utc) + timedelta(minutes=5)
+    to_encode.update({"exp": expire, "type": 'access', 'jti': str(uuid.uuid4())})
     encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encoded_jwt
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=15)
-    to_encode.update({"exp": expire, "type": 'refresh'})
+    to_encode.update({"exp": expire, "type": 'refresh', 'jti': str(uuid.uuid4())})
     encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encoded_jwt
 
@@ -51,25 +55,39 @@ def login(request: OAuth2PasswordRequestForm = Depends(), db: session = Depends(
 
 
 @router.post('/refersh_token')
-def refersh_token(refresh_token: str):
+def refersh_token(refresh_token: str, db: session = Depends(db.get_db)):
     payload = jwt.decode(refresh_token, secret_key, algorithms=[algorithm])
-    if not payload['type'] != 'refresh':
+    print(payload)
+    if not payload['type'] == 'refresh':
         app.logger.warning(f'Invalid Token: {refresh_token}')
         raise app.InvalidCredentials
+    jti = payload["jti"]
+    is_revoked = db.query(revoked_tokens).filter(revoked_tokens.jti == uuid.UUID(jti)).first()
+    if is_revoked:
+        app.logger.warning(f"rejected token: revoked jti={jti}")
+        raise HTTPException(status_code=401, detail="Token has been revoked")
     user_id = payload['sub']
     access_token = create_access_token(data={"sub": user_id})
     return {'acces_token': access_token, 'token_type': 'bearer'}
 
 
-# @router.post("/signout")
-# async def signout(token: str ):
-#     # 1. Decode the token to get the jti (unique ID)
-#     payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-#     jti = payload.get("jti")
-    
-#     # 2. Add this jti to your Redis Denylist/Blacklist
-#     # This ensures that even if someone has the token, it won't work anymore
-#     await redis.setex(f"blacklist:{jti}", TOKEN_EXPIRES_IN, "revoked")
-    
-#     return {"message": "Successfully signed out"}
+@router.post("/logout")
+def signout(access_token: str,refresh_token: str, response: Response,   db: session = Depends(db.get_db)):
+    payload = jwt.decode(access_token, secret_key, algorithms=[algorithm])
+    payload_refresh = jwt.decode(refresh_token, secret_key, algorithms=[algorithm])
+    jti1 = (payload.get("jti"))
+    jti2 = payload_refresh['jti']
+    user_id = payload["sub"]
+    try:    
+        db.add(revoked_tokens(jti=jti1, user_id=user_id, reason="logout"))
+        db.add(revoked_tokens(jti=jti2, user_id=user_id, reason="logout"))
+        db.commit()
+        app.logger.info(f"logout: user={user_id} jti1={uuid.UUID(jti1)} jti2={uuid.UUID(jti2)} revoked")
+        response.delete_cookie(key="access_token")
+        response.delete_cookie(key='refresh_token')
+        return {"detail": "logged out"}
+    except IntegrityError:
+        db.rollback()
+    app.logger.info(f"logout: already revoked")
+
 

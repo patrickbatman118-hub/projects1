@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from app import db,models,app
 from sqlalchemy.orm import session
 from uuid import UUID
-
+from ..models.jwt import revoked_tokens
 load_dotenv()
 
 secret_key=os.getenv('SECRET_KEY')
@@ -19,7 +19,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: session = Depends(db.get_db)):
-    print(f"DEBUG: THE EXACT TOKEN IS: [{token}]")
+    print(token)
     try:     
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         user_id = payload.get("sub")
@@ -33,12 +33,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: session = Depends(
         if user.disabled:
             app.logger.info(f'User disabled: {user.user_id}')
             raise app.InvalidCredentials
+        jti = payload["jti"]
+        is_revoked = db.query(revoked_tokens).filter(revoked_tokens.jti == UUID(jti)).first()
+        if is_revoked:
+            app.logger.warning(f"rejected token: revoked jti={jti}")
+            raise HTTPException(status_code=401, detail="Token has been revoked")
         return user
-    except JWTError as e: 
-        print(f"DEBUG EXACT ERROR: {e}")
-        app.logger.warning('Token is invalid or expired')
-        raise app.InvalidCredentials
         
+    except JWTError as e: 
+        app.logger.warning('Token is invalid or expired: {e}')
+        raise app.InvalidCredentials  
     except Exception:
         db.rollback()
         app.logger.exception('failed to get user')
