@@ -34,8 +34,8 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 class userupdate(BaseModel):
-    name: Optional[str]
-    pfp: Optional[str]
+    name: Optional[str] = None
+    pfp: Optional[str] = None
 
 
 

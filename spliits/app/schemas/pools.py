@@ -33,7 +33,7 @@ class PoolResponse(BaseModel):
         from_attributes = True
 
 class updatepool(BaseModel):
-    title: Optional[str]
-    description: Optional[str]
-    total_cost: Optional[float]
-    max_members: Optional[int]
+    title: Optional[str] = None
+    description: Optional[str] = None
+    total_cost: Optional[float] = None
+    max_members: Optional[int] = None

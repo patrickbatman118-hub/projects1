@@ -18,6 +18,7 @@ class User(Base):
     created_at : Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True),server_default=text("now()"))
     updated_at : Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True),server_default=text("now()"), onupdate=lambda: datetime.now(timezone.utc))
     disabled: Mapped[bool] = mapped_column(Boolean,  nullable=True, default=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean,  nullable=True, default=False)
 
     hosted_pools = relationship('pool', back_populates='host')
 

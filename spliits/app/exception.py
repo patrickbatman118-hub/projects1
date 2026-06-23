@@ -12,3 +12,6 @@ class NoPoolExist(Exception):
 
 class AlreadyInThePool(Exception):
     pass
+
+class ForbiddenUser(Exception):
+    pass

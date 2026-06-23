@@ -12,6 +12,7 @@ class notifications(Base):
     receiver_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.user_id', ondelete='CASCADE'))
     sender_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.user_id', ondelete='CASCADE'))
     content: Mapped[str] = mapped_column(Text,nullable=False)
+    pool_id: Mapped[UUID] = mapped_column(UUID, ForeignKey('pools.pool_id', ondelete='CASCADE'))
     is_read: Mapped[bool] = mapped_column(Boolean,nullable=False,default=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=text('now()'))
 

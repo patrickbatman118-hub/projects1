@@ -13,14 +13,21 @@ import uuid
 from ..models.jwt import revoked_tokens
 from sqlalchemy.exc import IntegrityError
 from .OAuth2 import get_current_active_user
+from ..models.users import User
 
 secret_key=os.getenv('SECRET_KEY')
 algorithm=os.getenv('ALGORITHM')
 
+def build_scopes(user: User):
+    scopes = ["user"]
+    if user.is_admin:
+        scopes.append("admin")
+    return scopes
+
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=5)
-    to_encode.update({"exp": expire, "type": 'access', 'jti': str(uuid.uuid4())})
+    expire = datetime.now(timezone.utc) + timedelta(minutes=55)
+    to_encode.update({"exp": expire, "type": 'access', 'jti': str(uuid.uuid4()), "iat": datetime.now(timezone.utc)})
     encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encoded_jwt
 
@@ -49,7 +56,8 @@ def login(request: OAuth2PasswordRequestForm = Depends(), db: session = Depends(
     if not bcrypt.checkpw(request.password.encode(),user.password.encode()):
         app.logger.warning(f'Invalid Password: {request.username}')
         raise app.InvalidCredentials
-    access_token = create_access_token(data={"sub": str(user.user_id)})
+    scopes = build_scopes(user)
+    access_token = create_access_token(data={"sub": str(user.user_id), "scopes": scopes})
     refresh_token = create_refresh_token(data={"sub": str(user.user_id)})
     return {'access_token': access_token, 'refresh_token': refresh_token, 'token_type': 'bearer'}
 
@@ -57,7 +65,6 @@ def login(request: OAuth2PasswordRequestForm = Depends(), db: session = Depends(
 @router.post('/refersh_token')
 def refersh_token(refresh_token: str, db: session = Depends(db.get_db)):
     payload = jwt.decode(refresh_token, secret_key, algorithms=[algorithm])
-    print(payload)
     if not payload['type'] == 'refresh':
         app.logger.warning(f'Invalid Token: {refresh_token}')
         raise app.InvalidCredentials

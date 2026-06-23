@@ -6,8 +6,14 @@ from app.security.authentication import create_access_token, create_refresh_toke
 from app.security.OAuth2 import get_current_active_user
 from fastapi.responses import RedirectResponse
 from uuid import UUID
-
+from ..models.users import User
 router = APIRouter(tags=['users'])
+
+def build_scopes(user: User):
+    scopes = ["user"]
+    if user.is_admin:
+        scopes.append("admin")
+    return scopes
 
 @router.post('/signup')
 def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
@@ -19,7 +25,8 @@ def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
             db.flush()
             db.refresh(new_user)
             app.logger.info(f'User Created: {user.email}')
-            access_token = create_access_token(data={"sub": str(new_user.user_id)})
+            scopes = build_scopes(new_user)
+            access_token = create_access_token(data={"sub": str(new_user.user_id), "scopes": scopes})
             refresh_token = create_refresh_token(data={"sub": str(new_user.user_id)})
             db.commit()
             return {'acces_token': access_token, 'refresh_token': refresh_token, 'token_type': 'bearer'}

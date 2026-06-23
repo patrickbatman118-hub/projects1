@@ -29,7 +29,8 @@ def request_pool(id: UUID,db: session = Depends(get_db), current_user = Depends(
         notification = notifications(
         sender_id = current_user.user_id,
         receiver_id = get_pool.host_id,
-        content = (f'New Request from {current_user.name}') 
+        content = (f'New Request from {current_user.name}'),
+        pool_id = get_pool.pool_id
         )
         db.add(notification)
         db.add(new_member)
@@ -64,7 +65,8 @@ def approverequest(id: UUID,approval:request_status,db: session = Depends(get_db
         notification = notifications(
             sender_id = current_user.user_id,
             receiver_id = get_request.user_id,
-            content = (f'Request Accepted: {get_request.pool_id}')
+            content = (f'Request Accepted: {get_request.pool_id}'),
+            pool_id = get_request.pool_id
         )
         db.add(notification)
         db.commit()

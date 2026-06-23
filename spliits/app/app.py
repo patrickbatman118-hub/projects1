@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from app.routers import users, pools, requests
 from app.security import authentication
-from .exception import EmailAlreadyExists,NoUserExists,InvalidCredentials,NoPoolExist,AlreadyInThePool
+from .exception import EmailAlreadyExists,NoUserExists,InvalidCredentials,NoPoolExist,AlreadyInThePool,ForbiddenUser
 from fastapi.responses import JSONResponse
 import logging
 
@@ -14,7 +14,7 @@ app.include_router(requests.router)
 
 logging.basicConfig(
     filename='app.log',
-    filemode='a',
+    filemode='w',
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
@@ -53,5 +53,9 @@ def No_Pool_Found(request, exc):
 @app.exception_handler(AlreadyInThePool)
 def already_in_pool_exception_handler(request, exc):
     return JSONResponse(status_code=409, content={'Message': 'Already in the pool'})
+
+@app.exception_handler(ForbiddenUser)
+def forbidden_user_exception_handeler(request, exc):
+    return JSONResponse(status_code=403, content={'Message': 'Not authorized'})
 
 

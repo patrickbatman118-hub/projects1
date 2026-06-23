@@ -15,11 +15,17 @@ algorithm=os.getenv('ALGORITHM')
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
+class CurrentUser:
+    def __init__(self, payload: dict):
+        self.user_id = UUID(payload["sub"])
+        self.scopes = payload["scopes"]
+        self.jti = payload["jti"]
 
+    def has_scope(self, scope: str):
+        return scope in self.scopes
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: session = Depends(db.get_db)):
-    print(token)
     try:     
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         user_id = payload.get("sub")
@@ -38,7 +44,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: session = Depends(
         if is_revoked:
             app.logger.warning(f"rejected token: revoked jti={jti}")
             raise HTTPException(status_code=401, detail="Token has been revoked")
-        return user
+        return CurrentUser(payload)
         
     except JWTError as e: 
         app.logger.warning('Token is invalid or expired: {e}')
@@ -48,9 +54,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: session = Depends(
         app.logger.exception('failed to get user')
         raise HTTPException(status_code=500, detail='Error getting user')
 
+def get_current_active_user1(payload = Depends(get_current_user)):
+    user_id = payload.user_id
+    user = db.query(models.users.User).filter(models.users.User.user_id == UUID(user_id)).first()
+    return user
 
 def get_current_active_user(
-    current_user = Depends(get_current_user),
+    current_user = Depends(get_current_active_user1)
 ):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")

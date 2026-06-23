@@ -3,17 +3,18 @@ from sqlalchemy.orm import session
 from .. import app,db
 from ..models.pools import pool as models
 from ..schemas import pools
-from ..security.OAuth2 import get_current_active_user
+from ..security.OAuth2 import get_current_active_user1, get_current_user
 from sqlalchemy import func
 from uuid import UUID
 from ..models.pool_members import pool_members
+from ..policy.policies import policy_engine
 
 
 router = APIRouter(tags=['pools'])
 
 
 @router.post('/createpool')
-def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user = Depends(get_current_active_user)):
+def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user = Depends(get_current_active_user1)):
     try:
         count = db.query(func.count(models.pool_id)).filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 30).scalar()
         countday = db.query(func.count(models.pool_id)).filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 1).scalar()
@@ -47,7 +48,7 @@ def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user 
 
 
 @router.delete('/deletepool/{id}')
-def del_pool(id: UUID,db: session = Depends(db.get_db),current_user = Depends(get_current_active_user)):
+def del_pool(id: UUID,db: session = Depends(db.get_db),current_user = Depends(get_current_active_user1)):
     try:      
         pool = db.query(models).filter(models.host_id == current_user.user_id, models.pool_id == id).first()
         if not pool:
@@ -65,20 +66,23 @@ def del_pool(id: UUID,db: session = Depends(db.get_db),current_user = Depends(ge
 
 
 @router.put('/updatepool/{id}')
-def update_pool(id:UUID,pool: pools.updatepool, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
+def update_pool(id:UUID,pool: pools.updatepool, db: session = Depends(db.get_db), current_user = Depends(get_current_user)):
     try:    
-        get_pool = db.query(models).filter(models.host_id == current_user.user_id, models.pool_id == id).first()
-        if not pool:
+        get_pool = db.query(models).filter(models.pool_id == id).first()
+        if not get_pool:
             app.logger.warning(f'No Pool Exists: {id}')
             raise app.NoPoolExist
-        get_pool.title = pool.title
-        get_pool.description = pool.description
-        get_pool.total_cost = pool.total_cost
-        get_pool.max_members = pool.max_members
+        allowed, reason = policy_engine.check('update','pool',current_user, get_pool)
+        if not allowed:
+            app.logger.warning(f"denied actor={current_user.user_id} action=update pool:{get_pool.pool_id} reason={reason}")
+            raise app.ForbiddenUser
+        update_data = pool.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(get_pool, key, value)
         db.commit()
         db.refresh(get_pool)
         return get_pool
-    except app.NoPoolExist:
+    except (app.ForbiddenUser,app.NoPoolExist):
         raise
     except Exception:
         app.logger.exception(f'Error updating pool: {pool}')
@@ -91,7 +95,7 @@ def get_pools(db: session = Depends(db.get_db)):
     return pools
 
 @router.get('/pool/mypools', response_model=list[pools.PoolResponse])
-def get_pool( db: session = Depends(db.get_db), current_user = Depends(get_current_active_user)):
+def get_pool( db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
     pools = db.query(models).filter( models.is_active == True,models.host_id == current_user.id).all()
     return pools
 
