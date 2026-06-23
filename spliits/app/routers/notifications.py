@@ -7,9 +7,10 @@ from ..security.OAuth2 import get_current_user,get_current_active_user1
 from sqlalchemy.orm import session
 from uuid import UUID 
 from ..schemas.micallenious import NotificationResponseSchema
+from ..policy.policy_engine import require_scope
 
 @router.get('/notifications/read-all', response_model=NotificationResponseSchema)
-def read_all_notifications(db: session = Depends(get_db), current_user = Depends(get_current_active_user1)):
+def read_all_notifications(db: session = Depends(get_db), current_user = Depends(require_scope('user'))):
     notification = db.query(notifications).filter(
         notifications.receiver_id == current_user.user_id
     ).order_by(notifications.created_at.desc()).limit(30).all()
