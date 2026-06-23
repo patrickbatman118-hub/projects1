@@ -40,10 +40,7 @@ def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error creating user'})
 
-@router.get('/uers',response_model=list[schemas.users.UserResponse])
-def get_users(db: session = Depends(db.get_db)):
-    users = db.query(models.users.User).filter(models.users.User.disabled == False).all()
-    return users    
+    
 
 @router.get('/user/{id}', response_model=schemas.users.UserResponse)
 def get_user(id: UUID, db: session = Depends(db.get_db)):

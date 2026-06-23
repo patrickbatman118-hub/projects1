@@ -6,8 +6,10 @@ from app import app
 from ..security.OAuth2 import get_current_active_user
 from sqlalchemy.orm import session
 from uuid import UUID 
-from ..utils.enum import request_status
+from ..schemas import users as schemaUsers
+from ..policy.policy_engine import require_scope
 
-@router.get('/allusers')
-def get_users():
-    pass
+@router.get('/users')
+def get_users(db: session = Depends(get_db), current_user = Depends(require_scope('admin'))):
+    user = db.query(users.User).all()
+    return user

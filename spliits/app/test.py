@@ -13,4 +13,4 @@ class CurrentUser:
     
 user = CurrentUser(payload)
 
-print(user.scopes)
+print(user.user_id)

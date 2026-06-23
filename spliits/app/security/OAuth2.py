@@ -54,9 +54,9 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: session = Depends(
         app.logger.exception('failed to get user')
         raise HTTPException(status_code=500, detail='Error getting user')
 
-def get_current_active_user1(payload = Depends(get_current_user)):
+def get_current_active_user1(payload = Depends(get_current_user), db: session = Depends(db.get_db)):
     user_id = payload.user_id
-    user = db.query(models.users.User).filter(models.users.User.user_id == UUID(user_id)).first()
+    user = db.query(models.users.User).filter(models.users.User.user_id == user_id).first()
     return user
 
 def get_current_active_user(

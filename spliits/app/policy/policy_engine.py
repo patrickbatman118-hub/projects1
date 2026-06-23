@@ -1,6 +1,7 @@
 from typing import Callable
 from dataclasses import dataclass
-
+from ..security.OAuth2 import get_current_user
+from fastapi import Depends,HTTPException
 @dataclass
 
 class Rule:
@@ -24,3 +25,11 @@ class PolicyEngine:
         if rule is not None and not rule.check(actor, Resource):
             return False, "ownership_check_failed"
         return True, "allowed"
+    
+
+def require_scope(scope: str):#scope only
+    def checker(current_user = Depends(get_current_user)):
+        if scope not in current_user.scopes:
+            raise HTTPException(status_code=403, detail="Insufficient scope")
+        return current_user
+    return checker

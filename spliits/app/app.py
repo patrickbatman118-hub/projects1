@@ -1,16 +1,19 @@
-from fastapi import FastAPI, HTTPException
-from app.routers import users, pools, requests
+from fastapi import FastAPI, HTTPException, Depends
+from app.routers import users, pools, requests, admin, notifications
 from app.security import authentication
 from .exception import EmailAlreadyExists,NoUserExists,InvalidCredentials,NoPoolExist,AlreadyInThePool,ForbiddenUser
 from fastapi.responses import JSONResponse
 import logging
+from .security.OAuth2 import get_current_user
+
 
 app = FastAPI()
 app.include_router(users.router)
 app.include_router(authentication.router)
 app.include_router(pools.router)
 app.include_router(requests.router)
-
+app.include_router(admin.router)
+app.include_router(notifications.router)
 
 logging.basicConfig(
     filename='app.log',
