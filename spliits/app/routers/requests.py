@@ -3,13 +3,14 @@ from app.db import get_db
 from ..models import pool_members,pools,users,notifications
 router= APIRouter(tags=['requests'])
 from app import app
-from ..security.OAuth2 import get_current_active_user
+from ..security.OAuth2 import get_current_active_user1
 from sqlalchemy.orm import session
 from uuid import UUID 
 from ..utils.enum import request_status
+from ..policy.policy_engine import require_scope
 
-@router.post('/sendrequest/{id}')
-def request_pool(id: UUID,db: session = Depends(get_db), current_user = Depends(get_current_active_user)):
+@router.post('/sendrequest/{pool_id}')
+def request_pool(id: UUID,db: session = Depends(get_db), current_user = Depends(require_scope('user'))):
     try:
         get_pool = db.query(pools.pool).filter(pools.pool.pool_id == id).first()
         try_user = db.query(pool_members).filter(pool_members.user_id == current_user.user_id).first()
@@ -45,12 +46,12 @@ def request_pool(id: UUID,db: session = Depends(get_db), current_user = Depends(
         raise HTTPException(status_code=500, detail='Error Sending Request')
     
 @router.get('/getrequest')
-def getrequests(db: session = Depends(get_db), current_user = Depends(get_current_active_user)):
+def getrequests(db: session = Depends(get_db), current_user = Depends(get_current_active_user1)):
     requests = db.query(pool_members).filter(pool_members.host_id == current_user.user_id, pool_members.status == 'requested').outerjoin(users.User, users.User.user_id == pool_members.host_id).all()
     return requests
 
-@router.post('/acceptrequest/{id}')
-def approverequest(id: UUID,approval:request_status,db: session = Depends(get_db), current_user = Depends(get_current_active_user) ):
+@router.post('/acceptrequest/{request_id}')
+def approverequest(id: UUID,approval:request_status,db: session = Depends(get_db), current_user = Depends(get_current_active_user1) ):
     try:    
         get_request = db.query(pool_members).filter(pool_members.member_id == id, pool_members.host_id == current_user.user_id).first()
         if not get_request:

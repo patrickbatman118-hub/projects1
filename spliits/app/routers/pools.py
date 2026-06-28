@@ -8,13 +8,12 @@ from sqlalchemy import func
 from uuid import UUID
 from ..models.pool_members import pool_members
 from ..policy.policies import policy_engine
-
-
+from ..policy.policy_engine import require_scope
 router = APIRouter(tags=['pools'])
 
 
 @router.post('/createpool')
-def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user = Depends(get_current_active_user1)):
+def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user = Depends(require_scope('user'))):
     try:
         count = db.query(func.count(models.pool_id)).filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 30).scalar()
         countday = db.query(func.count(models.pool_id)).filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 1).scalar()
@@ -48,7 +47,7 @@ def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user 
 
 
 @router.delete('/deletepool/{id}')
-def del_pool(id: UUID,db: session = Depends(db.get_db),current_user = Depends(get_current_active_user1)):
+def del_pool(id: UUID,db: session = Depends(db.get_db),current_user = Depends(require_scope('user'))):#####
     try:      
         pool = db.query(models).filter(models.host_id == current_user.user_id, models.pool_id == id).first()
         if not pool:
@@ -95,7 +94,7 @@ def get_pools(db: session = Depends(db.get_db)):
     return pools
 
 @router.get('/pool/mypools', response_model=list[pools.PoolResponse])
-def get_pool( db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
+def get_pool( db: session = Depends(db.get_db), current_user = Depends(require_scope('user'))):
     pools = db.query(models).filter( models.is_active == True,models.host_id == current_user.id).all()
     return pools
 

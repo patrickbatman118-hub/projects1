@@ -3,7 +3,7 @@ from app import schemas, models,db,app
 from sqlalchemy.orm import session
 from app.security.hash_password import hash_password
 from app.security.authentication import create_access_token, create_refresh_token
-from app.security.OAuth2 import get_current_active_user
+from app.security.OAuth2 import get_current_active_user1
 from fastapi.responses import RedirectResponse
 from uuid import UUID
 from ..models.users import User
@@ -52,7 +52,7 @@ def get_user(id: UUID, db: session = Depends(db.get_db), current_user=Depends(re
     return user
 
 @router.delete('/deleteuser')
-def del_user( db: session = Depends(db.get_db), current_user = Depends(require_scope('user'))):
+def del_user( db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
     try:        
         get_user = db.query(models.users.User).filter(models.users.User.user_id == current_user.user_id).first()
         if not get_user:
@@ -72,7 +72,7 @@ def del_user( db: session = Depends(db.get_db), current_user = Depends(require_s
         raise HTTPException(status_code=500, detail={'Message': 'Error deleting user'})
     
 @router.put('/updateuser')
-def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db), current_user = Depends(require_scope('user'))):
+def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
     try:
         get_user = db.query(models.users.User).filter(models.users.User.user_id == current_user.user_id).first()
         if not get_user:
@@ -89,5 +89,13 @@ def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db)
         app.logger.exception(f'Error updating user: {current_user.user_id}')
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error updating user'})
-    
+
+
+@router.get('/me',response_model=schemas.users.UserResponse)
+def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
+    user = db.query(models.users.User).filter(models.users.User.user_id == current_user.user_id, models.users.User.disabled == False).first()
+    if not user:
+        app.logger.warning(f'No User Exists: {id}')
+        raise app.NoUserExists
+    return user
 
