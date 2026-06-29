@@ -21,5 +21,6 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean,  nullable=True, default=False)
 
     hosted_pools = relationship('pool', back_populates='host')
+    audit_logs = relationship("AuditLog",back_populates="actor",passive_deletes=True)
 
 

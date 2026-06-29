@@ -9,7 +9,7 @@ from uuid import UUID
 from ..utils.enum import request_status
 from ..policy.policy_engine import require_scope
 
-@router.post('/sendrequest/{pool_id}')
+@router.post('/user/sendrequest/{pool_id}')
 def request_pool(id: UUID,db: session = Depends(get_db), current_user = Depends(require_scope('user'))):
     try:
         get_pool = db.query(pools.pool).filter(pools.pool.pool_id == id).first()
@@ -45,12 +45,12 @@ def request_pool(id: UUID,db: session = Depends(get_db), current_user = Depends(
         db.rollback()
         raise HTTPException(status_code=500, detail='Error Sending Request')
     
-@router.get('/getrequest')
+@router.get('/user/getrequest')
 def getrequests(db: session = Depends(get_db), current_user = Depends(get_current_active_user1)):
     requests = db.query(pool_members).filter(pool_members.host_id == current_user.user_id, pool_members.status == 'requested').outerjoin(users.User, users.User.user_id == pool_members.host_id).all()
     return requests
 
-@router.post('/acceptrequest/{request_id}')
+@router.post('host/acceptrequest/{request_id}')
 def approverequest(id: UUID,approval:request_status,db: session = Depends(get_db), current_user = Depends(get_current_active_user1) ):
     try:    
         get_request = db.query(pool_members).filter(pool_members.member_id == id, pool_members.host_id == current_user.user_id).first()
@@ -78,3 +78,57 @@ def approverequest(id: UUID,approval:request_status,db: session = Depends(get_db
         app.logger.exception('Error rejecting/accepting request')
         db.rollback()
         raise HTTPException(status_code=500, detail=(f'An Error Occured'))
+
+@router.delete('/user/deleterequest/{request_id}')
+def delete_request(id:UUID,db:session = Depends(get_db), current_user = Depends(get_current_active_user1)):
+    request = db.query(pool_members).filter(pool_members.user_id == current_user.user_id, pool_members.status == 'requested',pool_members.member_id == id).first()
+    if not request:
+        app.logger.warning(f'No such request found: {pool_members.member_id}')
+        raise HTTPException(status_code=404, detail=(f'No request found'))
+    try:
+        db.delete(request)
+        db.commit()
+        return 'deleted'
+    except Exception:
+        app.logger.exception('Error deleting request')
+        db.rollback()
+        raise HTTPException(status_code=500, detail=(f'An Error Occured'))
+
+
+@router.get('/host/pools/{pool_id}/requests')
+def getrequests(id:UUID,db: session = Depends(get_db), current_user = Depends(get_current_active_user1)):
+    requests = db.query(pool_members).filter(pool_members.host_id == current_user.user_id, pool_members.status == 'requested',pool_members.pool_id == id).outerjoin(users.User, users.User.user_id == pool_members.host_id).all()
+    return requests
+
+
+@router.delete('/memberships/pools/{pool_id}/leave')
+def delete_request(id:UUID,db:session = Depends(get_db), current_user = Depends(get_current_active_user1)):
+    request = db.query(pool_members).filter(pool_members.user_id == current_user.user_id,pool_members.pool_id == id,pool_members.role == 'member').first()
+    if not request:
+        app.logger.warning(f'No such request found: {pool_members.member_id}')
+        raise HTTPException(status_code=404, detail=(f'No request found'))
+    try:
+        db.delete(request)
+        db.commit()
+        return 'deleted'
+    except Exception:
+        app.logger.exception('Error deleting request')
+        db.rollback()
+        raise HTTPException(status_code=500, detail=(f'An Error Occured'))
+    
+
+@router.delete('/memberships/pools/{pool_id}/members/{user_id}')
+def delete_request(user_id:UUID,pool_id: UUID,db:session = Depends(get_db), current_user = Depends(get_current_active_user1)):
+    request = db.query(pool_members).filter(pool_members.host_id == current_user.user_id,pool_members.pool_id == pool_id,pool_members.role == 'member',pool_members.user_id == user_id).first()
+    if not request:
+        app.logger.warning(f'No such request found: {pool_members.member_id}')
+        raise HTTPException(status_code=404, detail=(f'No request found'))
+    try:
+        db.delete(request)
+        db.commit()
+        return 'deleted'
+    except Exception:
+        app.logger.exception('Error deleting request')
+        db.rollback()
+        raise HTTPException(status_code=500, detail=(f'An Error Occured'))
+    

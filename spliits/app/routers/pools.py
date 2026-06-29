@@ -71,9 +71,9 @@ def update_pool(id:UUID,pool: pools.updatepool, db: session = Depends(db.get_db)
         if not get_pool:
             app.logger.warning(f'No Pool Exists: {id}')
             raise app.NoPoolExist
-        allowed, reason = policy_engine.check('update','pool',current_user, get_pool)
+        allowed, reason = policy_engine.check(db,'update','pool',current_user, get_pool)
         if not allowed:
-            app.logger.warning(f"denied actor={current_user.user_id} action=update pool:{get_pool.pool_id} reason={reason}")
+            db.commit()
             raise app.ForbiddenUser
         update_data = pool.model_dump(exclude_unset=True)
         for key, value in update_data.items():
@@ -97,6 +97,14 @@ def get_pools(db: session = Depends(db.get_db)):
 def get_pool( db: session = Depends(db.get_db), current_user = Depends(require_scope('user'))):
     pools = db.query(models).filter( models.is_active == True,models.host_id == current_user.id).all()
     return pools
+
+@router.get('/pool/{id}', response_model=pools.PoolResponse)
+def get_pool(id: UUID, db: session = Depends(db.get_db)):
+    pool = db.query(models).filter(models.pool_id == id, models.is_active == True).first()
+    return pool
+
+ 
+
 
 
              
