@@ -19,7 +19,11 @@ def build_scopes(user: User):
 @router.post('/signup')
 def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
     try:
-        get_user = db.query(models.users.User).filter(models.users.User.email == user.email).first()
+        get_user = (
+            db.query(models.users.User)
+            .filter(models.users.User.email == user.email)
+            .first()
+        )
         if not get_user:
             new_user = hash_password(user)
             db.add(new_user)
@@ -45,7 +49,11 @@ def signup(user: schemas.users.user,db: session = Depends(db.get_db)):
 
 @router.get('/user/{id}', response_model=schemas.users.UserResponse)
 def get_user(id: UUID, db: session = Depends(db.get_db), current_user=Depends(require_scope('user'))):
-    user = db.query(models.users.User).filter(models.users.User.user_id == id, models.users.User.disabled == False).first()
+    user = (
+        db.query(models.users.User)
+        .filter(models.users.User.user_id == id, models.users.User.disabled == False)
+        .first()
+    )
     if not user:
         app.logger.warning(f'No User Exists: {id}')
         raise app.NoUserExists
@@ -54,7 +62,11 @@ def get_user(id: UUID, db: session = Depends(db.get_db), current_user=Depends(re
 @router.delete('/deleteuser')
 def del_user( db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
     try:        
-        get_user = db.query(models.users.User).filter(models.users.User.user_id == current_user.user_id).first()
+        get_user = (
+            db.query(models.users.User)
+            .filter(models.users.User.user_id == current_user.user_id)
+            .first()
+        )
         if not get_user:
             app.logger.warning(f'No User Exists: {current_user.user_id}')
             raise app.NoUserExists
@@ -74,7 +86,11 @@ def del_user( db: session = Depends(db.get_db), current_user = Depends(get_curre
 @router.put('/updateuser')
 def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
     try:
-        get_user = db.query(models.users.User).filter(models.users.User.user_id == current_user.user_id).first()
+        get_user = (
+            db.query(models.users.User)
+            .filter(models.users.User.user_id == current_user.user_id)
+            .first()
+        )
         if not get_user:
             app.logger.warning(f'No User Exists: {current_user.user_id}')
             raise app.NoUserExists
@@ -92,10 +108,14 @@ def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db)
 
 
 @router.get('/me',response_model=schemas.users.UserResponse)
-def update_user(user: schemas.users.userupdate, db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
-    user = db.query(models.users.User).filter(models.users.User.user_id == current_user.user_id, models.users.User.disabled == False).first()
+def get_user(db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
+    user = (
+        db.query(models.users.User)
+        .filter(models.users.User.user_id == current_user.user_id, models.users.User.disabled == False)
+        .first()
+    )
     if not user:
-        app.logger.warning(f'No User Exists: {id}')
+        app.logger.warning(f'No User Exists: {current_user.user_id}')
         raise app.NoUserExists
     return user
 

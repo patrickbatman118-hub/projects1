@@ -15,8 +15,16 @@ router = APIRouter(tags=['pools'])
 @router.post('/createpool')
 def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user = Depends(require_scope('user'))):
     try:
-        count = db.query(func.count(models.pool_id)).filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 30).scalar()
-        countday = db.query(func.count(models.pool_id)).filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 1).scalar()
+        count = (
+            db.query(func.count(models.pool_id))
+            .filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 30)
+            .scalar()
+            )
+        countday = (
+            db.query(func.count(models.pool_id))
+            .filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 1)
+            .scalar()
+        )
         if count > 3 :
             app.logger.warning(f'Repeated pool creations from user: {current_user.user_id}')
             raise HTTPException(status_code=429, detail='Too many pool creation requests in a month')
@@ -49,7 +57,11 @@ def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user 
 @router.delete('/deletepool/{id}')
 def del_pool(id: UUID,db: session = Depends(db.get_db),current_user = Depends(require_scope('user'))):#####
     try:      
-        pool = db.query(models).filter(models.host_id == current_user.user_id, models.pool_id == id).first()
+        pool = (
+            db.query(models)
+            .filter(models.host_id == current_user.user_id, models.pool_id == id)
+            .first()
+            )
         if not pool:
             app.logger.warning(f'No Pool Exists: {id}')
             raise app.NoPoolExist
@@ -67,7 +79,11 @@ def del_pool(id: UUID,db: session = Depends(db.get_db),current_user = Depends(re
 @router.put('/updatepool/{id}')
 def update_pool(id:UUID,pool: pools.updatepool, db: session = Depends(db.get_db), current_user = Depends(get_current_user)):
     try:    
-        get_pool = db.query(models).filter(models.pool_id == id).first()
+        get_pool = (
+            db.query(models)
+            .filter(models.pool_id == id)
+            .first()
+        )
         if not get_pool:
             app.logger.warning(f'No Pool Exists: {id}')
             raise app.NoPoolExist
@@ -88,19 +104,43 @@ def update_pool(id:UUID,pool: pools.updatepool, db: session = Depends(db.get_db)
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error updating pool'})
     
-@router.get('/pools')
+@router.get('/pools', response_model=list[pools.PoolResponse])
 def get_pools(db: session = Depends(db.get_db)):
-    pools = db.query(models, pool_members).join(pool_members, pool_members.pool_id == models.pool_id).filter(models.is_active == True).limit(10).all()
+    pools = (
+        db.query(models,func.count(pool_members.pool_id)
+        .label('member_count'))
+        .outerjoin(pool_members, pool_members.pool_id == models.pool_id)
+        .filter(models.is_active == True)
+        .group_by(models.pool_id)
+        .limit(10)
+        .all()
+        )
+    if not pools:
+        app.logger.warning('No Pools Found')
+        raise app.NoPoolExist
     return pools
 
 @router.get('/pool/mypools', response_model=list[pools.PoolResponse])
 def get_pool( db: session = Depends(db.get_db), current_user = Depends(require_scope('user'))):
-    pools = db.query(models).filter( models.is_active == True,models.host_id == current_user.id).limit(10).all()
+    pools = (
+        db.query(models)
+        .outerjoin(pool_members, pool_members.pool_id == models.pool_id)
+        .filter( models.is_active == True,models.host_id == current_user.id)
+        .limit(10)
+        .all()
+    )
+    if not pools:
+        app.logger.warning(f'No Pools Found for user: {current_user.user_id}')
+        raise app.NoPoolExist
     return pools
 
-@router.get('/pool/{id}', response_model=pools.PoolResponse)
+@router.get('/pool/{id}', response_model=pools.PoolResponseBase)
 def get_pool(id: UUID, db: session = Depends(db.get_db)):
-    pool = db.query(models).filter(models.pool_id == id, models.is_active == True).first()
+    pool = (
+        db.query(models)
+        .filter(models.pool_id == id, models.is_active == True)
+        .first()
+    )
     return pool
 
  

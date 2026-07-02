@@ -19,18 +19,21 @@ class UserResponsePool(BaseModel):
     pfp: str
     role: str
 
-
-class PoolResponse(BaseModel):
+class PoolResponseBase(BaseModel):
     title: str
     description: str
     total_cost: float
     max_members: int
     category: PoolCategory
     is_active: bool
-    pepole: list[UserResponsePool]
 
     class Config:
         from_attributes = True
+
+class PoolResponse(BaseModel):
+    pool: PoolResponseBase
+    member_count: int
+
 
 class updatepool(BaseModel):
     title: Optional[str] = None
