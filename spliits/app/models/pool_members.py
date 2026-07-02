@@ -13,7 +13,7 @@ class pool_members(Base):
     user_id: Mapped[UUID] = mapped_column(UUID, ForeignKey('users.user_id', ondelete='SET NULL'), index=True)
     host_id: Mapped[UUID] = mapped_column(UUID, ForeignKey('users.user_id', ondelete='SET NULL'), index=True)
     status: Mapped[request_status] = mapped_column(Enum(request_status,values_callable=lambda enum: [e.value for e in enum],name='pool_status_enum'),nullable=False, server_default=request_status.REQUESTED.value)
-    role: Mapped[pool_role] = mapped_column(Enum(pool_role,values_callable=lambda enum: [e.value for e in enum],name='pool_role_enum'), nullable=False, server_default=pool_role.NONE.value)
+    role: Mapped[pool_role] = mapped_column(Enum(pool_role,values_callable=lambda enum: [e.value for e in enum],name='pool_role_enum'), nullable=False, server_default=pool_role.MEMBER.value)
     joined_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=text('now()'))
 
 

@@ -24,5 +24,5 @@ class request_status(str, Enum):
 class pool_role(str,Enum):
     HOST = 'host'
     MEMBER = 'member'
-    NONE = 'none'
+    
 

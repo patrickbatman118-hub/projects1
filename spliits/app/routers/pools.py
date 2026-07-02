@@ -88,14 +88,14 @@ def update_pool(id:UUID,pool: pools.updatepool, db: session = Depends(db.get_db)
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error updating pool'})
     
-@router.get('/pools', response_model=list[pools.PoolResponse])
+@router.get('/pools')
 def get_pools(db: session = Depends(db.get_db)):
-    pools = db.query(models).join(pool_members,pool_members.pool_id == models.pool_id).filter(models.is_active == True).all()
+    pools = db.query(models, pool_members).join(pool_members, pool_members.pool_id == models.pool_id).filter(models.is_active == True).limit(10).all()
     return pools
 
 @router.get('/pool/mypools', response_model=list[pools.PoolResponse])
 def get_pool( db: session = Depends(db.get_db), current_user = Depends(require_scope('user'))):
-    pools = db.query(models).filter( models.is_active == True,models.host_id == current_user.id).all()
+    pools = db.query(models).filter( models.is_active == True,models.host_id == current_user.id).limit(10).all()
     return pools
 
 @router.get('/pool/{id}', response_model=pools.PoolResponse)

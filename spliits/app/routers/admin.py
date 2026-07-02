@@ -11,5 +11,5 @@ from ..policy.policy_engine import require_scope
 
 @router.get('/users')
 def get_users(db: session = Depends(get_db), current_user = Depends(require_scope('admin'))):
-    user = db.query(users.User).all()
+    user = db.query(users.User).limit(10).all()
     return user

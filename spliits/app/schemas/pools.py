@@ -27,7 +27,7 @@ class PoolResponse(BaseModel):
     max_members: int
     category: PoolCategory
     is_active: bool
-    people: UserResponsePool
+    pepole: list[UserResponsePool]
 
     class Config:
         from_attributes = True
