@@ -1,5 +1,3 @@
-
-```markdown
 # Spliits
 
 A FastAPI/Python API with a PostgreSQL database, completely containerized with Docker.
@@ -17,8 +15,8 @@ Before running this project, make sure you have the following installed:
 ### 1. Clone the Repository
 Open your terminal and run:
 ```bash
-git clone https://github.com/patrickbatman118-hub/projects1/tree/master/spliits
-cd spliits
+git clone https://github.com/patrickbatman118-hub/projects1
+cd projects1/spliits
 
 ```
 
@@ -66,9 +64,9 @@ To view the database using an external GUI tool, use the following connection se
 
 * **Host:** `localhost`
 * **Port:** `5434`  *(Note: This maps to internal port 5432)*
-* **Username:** `myuser` (or whatever you set in `.env`)
-* **Password:** `mypassword` (or whatever you set in `.env`)
-* **Database:** `mydatabase` (or whatever you set in `.env`)
+* **Username:** `my_user` (or whatever you set in `.env`)
+* **Password:** `my_password` (or whatever you set in `.env`)
+* **Database:** `my_database` (or whatever you set in `.env`)
 
 ---
 
