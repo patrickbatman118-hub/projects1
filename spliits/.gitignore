@@ -18,3 +18,7 @@ __pycache__/
 
 #log
 *.log
+
+#someother
+extracted_models_and_schemas.md
+mock_data.py
