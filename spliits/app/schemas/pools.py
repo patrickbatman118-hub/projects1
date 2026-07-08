@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from ..utils.enum import PoolCategory
 from typing import Optional
+from uuid import UUID
 
 
 
@@ -20,6 +21,8 @@ class UserResponsePool(BaseModel):
     role: str
 
 class PoolResponseBase(BaseModel):
+    pool_id: UUID
+    host_id: UUID
     title: str
     description: str
     total_cost: float

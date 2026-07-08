@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import session
+from sqlalchemy.orm import session,aliased
 from .. import app,db
 from ..models.pools import pool as models
 from ..schemas import pools
 from ..security.OAuth2 import get_current_active_user1, get_current_user
-from sqlalchemy import func
+from sqlalchemy import func,text
 from uuid import UUID
 from ..models.pool_members import pool_members
 from ..policy.policies import policy_engine
@@ -17,12 +17,12 @@ def create_pool(pool: pools.pool, db: session = Depends(db.get_db),current_user 
     try:
         count = (
             db.query(func.count(models.pool_id))
-            .filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 30)
+            .filter(models.host_id == current_user.user_id,models.created_at >= func.now() - text("interval '30 days'"))
             .scalar()
             )
         countday = (
             db.query(func.count(models.pool_id))
-            .filter(models.host_id == current_user.user_id,func.extract('day', func.age(func.now(), models.created_at)) <= 1)
+            .filter(models.host_id == current_user.user_id,models.created_at >= func.now() - text("interval '1 day'"))
             .scalar()
         )
         if count > 3 :
@@ -104,28 +104,51 @@ def update_pool(id:UUID,pool: pools.updatepool, db: session = Depends(db.get_db)
         db.rollback()
         raise HTTPException(status_code=500, detail={'Message': 'Error updating pool'})
     
-@router.get('/pools', response_model=list[pools.PoolResponse])
+@router.get('/pools')
 def get_pools(db: session = Depends(db.get_db)):
-    pools = (
-        db.query(models,func.count(pool_members.pool_id)
-        .label('member_count'))
-        .outerjoin(pool_members, pool_members.pool_id == models.pool_id)
+    pool_sub = (
+        db.query(models)
         .filter(models.is_active == True)
-        .group_by(models.pool_id)
+        .order_by(models.created_at.desc())
         .limit(10)
+        .subquery()
+    )
+
+    pool = aliased(models,pool_sub)
+
+    pools1 = (
+        db.query(pool,func.count(pool_members.pool_id)
+        .label('member_count'))
+        .outerjoin(pool_members, pool_members.pool_id == pool.pool_id)
+        .group_by(
+                pool.pool_id,
+                pool.title,
+                pool.description,
+                pool.total_cost,
+                pool.max_members,
+                pool.category,
+                pool.cost_per_member,
+                pool.host_id,
+                pool.is_active,
+                pool.created_at,
+                pool.updated_at)
+        .order_by(pool.created_at.desc())
         .all()
         )
     if not pools:
         app.logger.warning('No Pools Found')
         raise app.NoPoolExist
-    return pools
+    return [
+    pools.PoolResponse(pool=row[0], member_count=row[1]) 
+    for row in pools1
+]
 
-@router.get('/pool/mypools', response_model=list[pools.PoolResponse])
+@router.get('/pool/mypools', response_model=list[pools.PoolResponseBase])
 def get_pool( db: session = Depends(db.get_db), current_user = Depends(require_scope('user'))):
     pools = (
         db.query(models)
-        .outerjoin(pool_members, pool_members.pool_id == models.pool_id)
-        .filter( models.is_active == True,models.host_id == current_user.id)
+        .filter( models.is_active == True,models.host_id == current_user.user_id)
+        .order_by(models.created_at.desc())
         .limit(10)
         .all()
     )

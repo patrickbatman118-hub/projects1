@@ -1,10 +1,9 @@
-
-
 """
 seed_mock_data.py
 
-Mock data generator for the Spliits schema (users, pools, pool_members),
-scaled for 10k+ rows. Built to practice real Postgres transactions.
+Mock data generator for the Spliits schema (users, pools, pool_members,
+notifications), scaled for 10k+ rows. Built to practice real Postgres
+transactions.
 
 WHY THIS IS FAST AT SCALE
 ---------------------------------------
@@ -30,11 +29,10 @@ no need to flush-and-reread IDs back from the DB between steps.
 BEFORE RUNNING
 ---------------------------------------
 1. pip install sqlalchemy psycopg2-binary bcrypt faker
-2. Set DATABASE_URL below (or export it as an env var).
-3. Fix the two imports marked "ADJUST THIS" to match where your
-   `request_status`, `pool_role`, and `PoolCategory` enums actually live.
-4. This imports your REAL models (User, pool, pool_members) so table/column
-   names match production exactly.
+2. Set DATABASE_URL1 below (or export it as an env var).
+3. This imports your REAL models (User, pool, pool_members, notifications)
+   and REAL enums (app.utils.enum) so table/column names and values match
+   production exactly.
 """
 from dotenv import load_dotenv
 load_dotenv()
@@ -61,21 +59,25 @@ DATABASE_URL = os.getenv(
 NUM_USERS = 10_000
 NUM_POOLS = 1_500
 MEMBERS_PER_POOL = (2, 6)      # random range per pool, capped by pool.max_members
+NUM_NOTIFICATIONS = 20_000     # mock notifications to generate
 INSERT_CHUNK_SIZE = 2_000      # rows per executemany batch
 
 engine = create_engine(DATABASE_URL, echo=False, future=True)
 fake = Faker()
 
 # --------------------------------------------------------------------------
-# YOUR REAL MODELS — adjust these import paths to match your project layout
+# YOUR REAL MODELS
 # --------------------------------------------------------------------------
 
 from app.models.users import User
 from app.models.pools import pool as Pool
 from app.models.pool_members import pool_members as PoolMember
+from app.models.notifications import notifications as Notification
 
-# ADJUST THIS: point these at wherever request_status / pool_role / PoolCategory
-# actually live in your codebase (e.g. app.models.enums, app.schemas.pools)
+# --------------------------------------------------------------------------
+# YOUR REAL ENUMS
+# --------------------------------------------------------------------------
+
 try:
     from app.utils.enum import request_status, pool_role
 except ImportError:
@@ -86,10 +88,9 @@ except ImportError:
         ACCEPTED = 'accepted'
         REJECTED = 'rejected'
 
-    class pool_role(str,Enum):
+    class pool_role(str, Enum):
         HOST = 'host'
         MEMBER = 'member'
-        
 
 
 try:
@@ -195,6 +196,32 @@ def build_pool_members(pool_rows: list[dict], user_rows: list[dict]) -> list[dic
     return rows
 
 
+NOTIFICATION_TEMPLATES = [
+    "just joined your pool",
+    "sent you a message about the pool",
+    "requested to join your pool",
+    "left the pool",
+    "updated the pool details",
+    "marked the pool as complete",
+]
+
+
+def build_notifications(n: int, user_rows: list[dict], pool_rows: list[dict]) -> list[dict]:
+    print(f"  Building {n} notification rows...")
+    rows = []
+    for _ in range(n):
+        sender, receiver = random.sample(user_rows, 2)  # distinct sender/receiver
+        pool_row = random.choice(pool_rows)
+        rows.append({
+            "receiver_id": receiver["user_id"],
+            "sender_id": sender["user_id"],
+            "content": f"{sender['name']} {random.choice(NOTIFICATION_TEMPLATES)}",
+            "pool_id": pool_row["pool_id"],
+            "is_read": random.choice([True, False, False]),  # skew toward unread
+        })
+    return rows
+
+
 # --------------------------------------------------------------------------
 # CHUNKED BULK INSERT
 # --------------------------------------------------------------------------
@@ -231,20 +258,24 @@ def transaction():
 # --------------------------------------------------------------------------
 
 def seed_happy_path():
-    print(f"\n[1] Seeding {NUM_USERS} users, {NUM_POOLS} pools, memberships...")
+    print(f"\n[1] Seeding {NUM_USERS} users, {NUM_POOLS} pools, "
+          f"memberships, {NUM_NOTIFICATIONS} notifications...")
     t0 = time.time()
 
     user_rows = build_users(NUM_USERS)
     pool_rows = build_pools(NUM_POOLS, user_rows)
     member_rows = build_pool_members(pool_rows, user_rows)
+    notification_rows = build_notifications(NUM_NOTIFICATIONS, user_rows, pool_rows)
 
     with transaction() as session:
         bulk_insert(session, User, user_rows, "users")
         bulk_insert(session, Pool, pool_rows, "pools")
         bulk_insert(session, PoolMember, member_rows, "pool_members")
+        bulk_insert(session, Notification, notification_rows, "notifications")
 
     print(f"Total: {len(user_rows)} users, {len(pool_rows)} pools, "
-          f"{len(member_rows)} pool_members in {time.time() - t0:.1f}s")
+          f"{len(member_rows)} pool_members, {len(notification_rows)} notifications "
+          f"in {time.time() - t0:.1f}s")
 
 
 # --------------------------------------------------------------------------
@@ -327,13 +358,17 @@ def seed_with_savepoint():
 # --------------------------------------------------------------------------
 
 def reset_tables():
-    confirm = input("Type 'yes' to TRUNCATE pool_members, pools, users: ")
+    confirm = input(
+        "Type 'yes' to TRUNCATE pool_members, pools, users, notifications "
+        "(CASCADE also clears audit_log/revoked_tokens FKs): "
+    )
     if confirm.strip().lower() != "yes":
         print("Aborted.")
         return
     with engine.begin() as conn:
         conn.exec_driver_sql(
-            "TRUNCATE TABLE pool_members, pools, users RESTART IDENTITY CASCADE;"
+            "TRUNCATE TABLE pool_members, pools, users, notifications "
+            "RESTART IDENTITY CASCADE;"
         )
     print("Tables truncated.")
 
@@ -345,7 +380,7 @@ def reset_tables():
 MENU = f"""
 Spliits mock data / transaction practice
 -----------------------------------------
-Current scale: {NUM_USERS:,} users / {NUM_POOLS:,} pools
+Current scale: {NUM_USERS:,} users / {NUM_POOLS:,} pools / {NUM_NOTIFICATIONS:,} notifications
 
 1) Seed happy-path data (bulk insert, chunked, one transaction)
 2) Trigger duplicate-email failure (whole-chunk rollback)
