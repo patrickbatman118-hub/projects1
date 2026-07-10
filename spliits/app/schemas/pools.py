@@ -3,9 +3,6 @@ from ..utils.enum import PoolCategory
 from typing import Optional
 
 
-
-
-
 class pool(BaseModel):
     title: str
     description: str
@@ -13,11 +10,14 @@ class pool(BaseModel):
     max_members: int = Field(gte=2)
     category: PoolCategory
 
+
 class UserResponsePool(BaseModel):
     name: str
     email: str
     pfp: str
-    role: str
+
+    class Config:
+        from_attributes = True
 
 
 class PoolResponse(BaseModel):
@@ -27,10 +27,11 @@ class PoolResponse(BaseModel):
     max_members: int
     category: PoolCategory
     is_active: bool
-    people: UserResponsePool
+    host: UserResponsePool
 
     class Config:
         from_attributes = True
+
 
 class updatepool(BaseModel):
     title: Optional[str] = None
