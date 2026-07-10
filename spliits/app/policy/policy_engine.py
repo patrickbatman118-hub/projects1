@@ -36,9 +36,14 @@ class PolicyEngine:
         return decision, reason
     
 
-def require_scope(scope: str):#scope only
-    def checker(current_user = Depends(get_current_user)):
-        if scope not in current_user.scopes:
-            raise HTTPException(status_code=403, detail="Insufficient scope")
-        current_user
-    checker
+class require_scope:
+    def __init__(self, scope: str):
+        self.scope = scope
+
+    def __call__(self, current_user = Depends(get_current_user)):
+        if self.scope not in current_user.scopes:
+            raise HTTPException(status_code=403, detail=f"Missing required scope: {self.scope}")
+        return current_user
+
+# require_scope("scope"): Used to completely block a user at the front door of your API.
+# current_user.has_scope("scope"): Written by you to branch your code (if/else) based on what the user is allowed to see or do.

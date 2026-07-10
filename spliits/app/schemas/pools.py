@@ -1,6 +1,10 @@
 from pydantic import BaseModel, Field
 from ..utils.enum import PoolCategory
 from typing import Optional
+from uuid import UUID
+
+
+
 
 
 class pool(BaseModel):
@@ -10,27 +14,28 @@ class pool(BaseModel):
     max_members: int = Field(gte=2)
     category: PoolCategory
 
-
 class UserResponsePool(BaseModel):
     name: str
     email: str
     pfp: str
+    role: str
 
-    class Config:
-        from_attributes = True
-
-
-class PoolResponse(BaseModel):
+class PoolResponseBase(BaseModel):
+    pool_id: UUID
+    host_id: UUID
     title: str
     description: str
     total_cost: float
     max_members: int
     category: PoolCategory
     is_active: bool
-    host: UserResponsePool
 
     class Config:
         from_attributes = True
+
+class PoolResponse(BaseModel):
+    pool: PoolResponseBase
+    member_count: int
 
 
 class updatepool(BaseModel):

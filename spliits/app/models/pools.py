@@ -1,5 +1,5 @@
 from sqlalchemy.orm import  Mapped, mapped_column, relationship
-from sqlalchemy import Integer, String, ForeignKey, Float, Text, Boolean, Computed, Numeric,text,TIMESTAMP,CheckConstraint,UniqueConstraint
+from sqlalchemy import Integer, String, ForeignKey, Float, Text, Boolean, Computed, Numeric,text,TIMESTAMP,CheckConstraint,UniqueConstraint,Index
 from datetime import datetime, timezone
 from ..db import Base
 from sqlalchemy.dialects.postgresql import UUID
@@ -31,5 +31,10 @@ class pool(Base):
 
     __table_args__ = (
         CheckConstraint('total_cost > 0', name='chq_cost'),
-        CheckConstraint('max_members > 0', name='chq_maxmembers')
+        CheckConstraint('max_members > 0', name='chq_maxmembers'),
+        Index(
+            'idx_active_created_desc',
+            created_at.desc(),       
+            postgresql_where=(is_active == True)
+        ),
     )

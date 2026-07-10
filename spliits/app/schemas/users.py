@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from enum import Enum
 from datetime import datetime
-from .pools import PoolResponse as pool
+from .pools import PoolResponseBase as pool
 from typing import Optional
 
 

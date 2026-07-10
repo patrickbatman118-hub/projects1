@@ -13,16 +13,16 @@ from ..policy.policy_engine import require_scope
 def request_pool(id: UUID,db: session = Depends(get_db), current_user = Depends(require_scope('user'))):
     try:
         get_pool = db.query(pools.pool).filter(pools.pool.pool_id == id).first()
-        try_user = db.query(pool_members).filter(pool_members.user_id == current_user.user_id).first()
+        try_user = db.query(pool_members).filter(pool_members.user_id == current_user.user_id, pool_members.pool_id == id).first()
         if not get_pool:
             app.logger.warning(f'No pool exists: {UUID}')
-            app.No_Pool_Found
+            raise app.NoPoolExist
         if get_pool.host_id == current_user.user_id:
-            app.logger.warning(f'multiple request')
-            app.already_in_pool_exception_handler
+            app.logger.warning(f'Host trying to send request to own pool: {current_user.user_id}')
+            raise app.AlreadyInThePool
         if try_user:
             app.logger.warning(f'multiple requests')
-            app.already_in_pool_exception_handler
+            raise app.AlreadyInThePool
         new_member = pool_members()
         new_member.pool_id = get_pool.pool_id
         new_member.user_id = current_user.user_id
@@ -30,7 +30,7 @@ def request_pool(id: UUID,db: session = Depends(get_db), current_user = Depends(
         notification = notifications(
         sender_id = current_user.user_id,
         receiver_id = get_pool.host_id,
-        content = (f'New Request from {current_user.name}'),
+        content = (f'New Request from {current_user.user_id}'),
         pool_id = get_pool.pool_id
         )
         db.add(notification)
@@ -38,7 +38,7 @@ def request_pool(id: UUID,db: session = Depends(get_db), current_user = Depends(
         db.commit()
         app.logger.info(f'sent request')
         return('sent request')
-    except HTTPException:
+    except (HTTPException,app.NoPoolExist,app.AlreadyInThePool):
         raise
     except Exception:
         app.logger.exception(f'Error sending Request')

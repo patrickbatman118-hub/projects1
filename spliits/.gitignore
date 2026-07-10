@@ -11,9 +11,14 @@ env/
 # Python cache
 __pycache__/
 *.pyc
+*.cache
 
 #db
 *.db
 
 #log
 *.log
+
+#someother
+extracted_models_and_schemas.md
+mock_data.py

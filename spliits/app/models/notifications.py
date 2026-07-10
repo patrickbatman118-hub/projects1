@@ -1,5 +1,5 @@
 from sqlalchemy.orm import  Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, Text, UUID, text, TIMESTAMP, CheckConstraint,UniqueConstraint, INTEGER, Boolean
+from sqlalchemy import ForeignKey, Text, UUID, text, TIMESTAMP, CheckConstraint,UniqueConstraint, INTEGER, Boolean, Index
 from datetime import datetime,timezone
 from ..db import Base
 import uuid
@@ -16,3 +16,7 @@ class notifications(Base):
     is_read: Mapped[bool] = mapped_column(Boolean,nullable=False,default=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=text('now()'))
 
+    __table_args__ = (
+        Index('idx_receiver_id_created_at', receiver_id, created_at.desc()),
+        Index('idx_notifications_unread_by_user','receiver_id',postgresql_where=(is_read == False) ),
+    )
