@@ -117,3 +117,6 @@ temp/
 node_modules/
 # Node (if you have a frontend later)
 node_modules/
+
+*.md
+mock_data.py

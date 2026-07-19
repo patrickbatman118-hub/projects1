@@ -11,6 +11,7 @@ dependencies = [
     "faker>=40.28.1",
     "fastapi>=0.137.1",
     "jwt>=1.4.0",
+    "pandas>=3.0.3",
     "psycopg2-binary>=2.9.12",
     "pydantic[email]>=2.13.4",
     "pyjwt>=2.13.0",
