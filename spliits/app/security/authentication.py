@@ -84,12 +84,13 @@ def signout(access_token: str,refresh_token: str, response: Response,   db: sess
     try:
         payload = jwt.decode(access_token, secret_key, algorithms=[algorithm])
         payload_refresh = jwt.decode(refresh_token, secret_key, algorithms=[algorithm])
-        jti1 = (payload.get("jti"))
+        jti1 = payload['jti']
         jti2 = payload_refresh['jti']
         user_id = payload["sub"]
-        now = datetime.now(timezone.utc)
-        access_token_exp = max((int(payload['exp']- now).total_seconds()), 0)    
-        revoke_jti(jti1, expires_in_seconds=access_token_exp)
+        exp = payload['exp']
+        now = int(datetime.now(timezone.utc).timestamp())
+        access_token_exp = max((exp - now), 0)
+        revoke_jti(jti1,access_token_exp)
         db.add(revoked_tokens(jti=jti2, user_id=user_id, reason="logout"))
         db.commit()
         app.logger.info(f"logout: user={user_id} jti1={uuid.UUID(jti1)} jti2={uuid.UUID(jti2)} revoked")
