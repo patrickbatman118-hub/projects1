@@ -4,7 +4,7 @@ from app import app,db,models,schemas
 from sqlalchemy.orm import session
 import bcrypt
 router = APIRouter(tags=['authentication'])
-from jose import jwt
+from jose import jwt,JWTError
 from datetime import timedelta,timezone,datetime
 import os
 from dotenv import load_dotenv
@@ -12,8 +12,9 @@ load_dotenv()
 import uuid
 from ..models.jwt import revoked_tokens
 from sqlalchemy.exc import IntegrityError
-from .OAuth2 import get_current_active_user
+from .OAuth2 import get_current_active_user,revoke_jti
 from ..models.users import User
+
 
 secret_key=os.getenv('SECRET_KEY')
 algorithm=os.getenv('ALGORITHM')
@@ -80,21 +81,29 @@ def refersh_token(refresh_token: str, db: session = Depends(db.get_db)):
 
 @router.post("/logout")
 def signout(access_token: str,refresh_token: str, response: Response,   db: session = Depends(db.get_db)):
-    payload = jwt.decode(access_token, secret_key, algorithms=[algorithm])
-    payload_refresh = jwt.decode(refresh_token, secret_key, algorithms=[algorithm])
-    jti1 = (payload.get("jti"))
-    jti2 = payload_refresh['jti']
-    user_id = payload["sub"]
-    try:    
-        db.add(revoked_tokens(jti=jti1, user_id=user_id, reason="logout"))
+    try:
+        payload = jwt.decode(access_token, secret_key, algorithms=[algorithm])
+        payload_refresh = jwt.decode(refresh_token, secret_key, algorithms=[algorithm])
+        jti1 = (payload.get("jti"))
+        jti2 = payload_refresh['jti']
+        user_id = payload["sub"]
+        now = datetime.now(timezone.utc)
+        access_token_exp = max((int(payload['exp']- now).total_seconds()), 0)    
+        revoke_jti(jti1, expires_in_seconds=access_token_exp)
         db.add(revoked_tokens(jti=jti2, user_id=user_id, reason="logout"))
         db.commit()
         app.logger.info(f"logout: user={user_id} jti1={uuid.UUID(jti1)} jti2={uuid.UUID(jti2)} revoked")
         response.delete_cookie(key="access_token")
         response.delete_cookie(key='refresh_token')
         return {"detail": "logged out"}
-    except IntegrityError:
+    except HTTPException:
+        raise
+    except JWTError as e:
+        app.logger.warning(f"logout: invalid token {e}")
+        raise app.InvalidCredentials
+    except Exception:
         db.rollback()
-    app.logger.info(f"logout: already revoked")
+        app.logger.exception(f"signout failed: user={payload.get('sub') if payload else 'unknown'}")
+        raise HTTPException(status_code=500, detail="Error during logout")
 
 
