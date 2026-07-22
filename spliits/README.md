@@ -1,84 +1,174 @@
 # Spliits
 
-A FastAPI/Python API with a PostgreSQL database, completely containerized with Docker.
-
-## Prerequisites
-
-Before running this project, make sure you have the following installed:
-* [Git](https://git-scm.com/)
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose)
+A personal backend API built with FastAPI and PostgreSQL, fully containerized using Docker. The project also integrates Redis for JWT token revocation checks and Apache Airflow for ETL workflows.
 
 ---
 
-## Getting Started
+# Prerequisites
 
-### 1. Clone the Repository
-Open your terminal and run:
+Before running this project, make sure you have the following installed:
+
+- Git
+- Docker Desktop (includes Docker Compose)
+
+---
+
+# Getting Started
+
+## 1. Clone the Repository
+
 ```bash
-git clone https://github.com/patrickbatman118-hub/projects1
+git clone https://github.com/patrickbatman118-hub/projects1.git
 cd projects1/spliits
-
 ```
 
-### 2. Configure Environment Variables
+---
 
-Create a `.env` file in the root directory of the project and add your database configuration:
+## 2. Configure Environment Variables
+
+Create a `.env` file in the project root and configure the required environment variables.
+
+### API Database
 
 ```env
 POSTGRES_USER=my_user
 POSTGRES_PASSWORD=my_password
 POSTGRES_DB=my_database
-DATABASE_URL=postgresql://myuser:mypassword@db:5432/mydatabase
-SECRET_KEY=my_secret_key
-ALGORITHM=my_algorithm
 
+DATABASE_URL=postgresql://my_user:my_password@db:5432/my_database
+DATABASE_URL1=postgresql://my_user:my_password@db:5432/my_database
+
+SECRET_KEY=my_secret_key
+ALGORITHM=HS256
 ```
 
-### 3. Start the Application
+### Airflow Database
 
-Run Docker Compose to build and start the API and database in the background:
+```env
+AIRFLOW_POSTGRES_USER=airflow
+AIRFLOW_POSTGRES_PASSWORD=airflow
+AIRFLOW_POSTGRES_DB=airflow
+
+AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+```
+
+### Airflow Admin
+
+```env
+AIRFLOW_ADMIN_USERNAME=admin
+AIRFLOW_ADMIN_PASSWORD=admin
+AIRFLOW_ADMIN_EMAIL=admin@example.com
+AIRFLOW_ADMIN_FIRSTNAME=Admin
+AIRFLOW_ADMIN_LASTNAME=User
+```
+
+---
+
+## 3. Build and Start the Services
+
+Build all containers and start the application.
 
 ```bash
 docker compose up -d --build
-
 ```
 
-*Note: The API will wait to start until the database health check passes.*
+This starts the following services:
 
-### 4. Verify It's Running
+- FastAPI API
+- PostgreSQL
+- Redis
+- Airflow PostgreSQL
+- Airflow Initialization
+- Airflow Scheduler
+- Airflow Webserver
 
-Check the status of your containers:
+The API automatically waits until the PostgreSQL database is healthy before starting.
+
+---
+
+## 4. Apply Database Migrations
+
+Run the latest Alembic migrations.
+
+```bash
+docker compose exec api alembic upgrade head
+```
+
+---
+
+## 5. Verify Everything is Running
 
 ```bash
 docker compose ps
-
 ```
 
-You should see both the `api` and `db` services marked as `running` (and the db as `healthy`). You can access the API locally at `http://localhost:8000`.
+---
+
+# Available Services
+
+| Service | URL |
+|----------|-----|
+| FastAPI API | http://localhost:8000 |
+| Swagger UI | http://localhost:8000/docs |
+| ReDoc | http://localhost:8000/redoc |
+| Airflow Web UI | http://localhost:8080 |
 
 ---
 
-## Connecting a Database GUI (DBeaver / pgAdmin)
+# Connecting to PostgreSQL
 
-To view the database using an external GUI tool, use the following connection settings:
+To connect using DBeaver, pgAdmin, or another PostgreSQL client:
 
-* **Host:** `localhost`
-* **Port:** `5434`  *(Note: This maps to internal port 5432)*
-* **Username:** `my_user` (or whatever you set in `.env`)
-* **Password:** `my_password` (or whatever you set in `.env`)
-* **Database:** `my_database` (or whatever you set in `.env`)
+| Property | Value |
+|----------|-------|
+| Host | localhost |
+| Port | 5433 |
+| Username | Value from `.env` |
+| Password | Value from `.env` |
+| Database | Value from `.env` |
 
 ---
 
-## Stopping the Project
+# Redis
 
-To stop the containers and free up your system ports without deleting your database data:
+Redis is used to cache revoked JWT tokens, allowing the API to validate revoked access tokens efficiently during authenticated requests.
+
+Redis is available on:
+
+```
+localhost:6379
+```
+
+---
+
+# Apache Airflow
+
+Apache Airflow is used for ETL workflows.
+
+The Airflow web interface is available at:
+
+```
+http://localhost:8080
+```
+
+---
+
+# Stopping the Project
+
+Stop all running containers.
 
 ```bash
 docker compose down
-
 ```
 
-```
+Database volumes are preserved, so your data will remain available the next time you start the project.
 
+---
+
+# Rebuilding the Containers
+
+If you modify dependencies or the Docker configuration, rebuild the containers with:
+
+```bash
+docker compose up -d --build
 ```
