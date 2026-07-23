@@ -1,6 +1,6 @@
 # Spliits
 
-A personal backend API built with FastAPI and PostgreSQL, fully containerized using Docker. The project also integrates Redis for JWT token revocation checks and Apache Airflow for ETL workflows.
+A personal backend API built with FastAPI and PostgreSQL, fully containerized using Docker. The project also integrates Redis for JWT token revocation checks and Apache Airflow for ETL workflows.[Read report here](./Report.md)
 
 ---
 
