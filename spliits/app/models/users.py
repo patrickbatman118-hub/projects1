@@ -14,7 +14,7 @@ class User(Base):
     name : Mapped[str] = mapped_column(String(250), nullable=False)
     email : Mapped[str] = mapped_column(String(250), nullable=False, unique=True)
     password : Mapped[str] = mapped_column(String(250), nullable=False)
-    pfp : Mapped[str] = mapped_column(String(250), nullable=False)
+    pfp : Mapped[str] = mapped_column(String(250), nullable=True, default=None)
     created_at : Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True),server_default=text("now()"))
     updated_at : Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True),server_default=text("now()"), onupdate=lambda: datetime.now(timezone.utc))
     disabled: Mapped[bool] = mapped_column(Boolean,  nullable=True, default=False)

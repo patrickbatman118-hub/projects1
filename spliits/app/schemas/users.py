@@ -10,7 +10,6 @@ from typing import Optional
 class user(BaseModel):
     name: str
     email: EmailStr
-    pfp: str
     password: str = Field(min_length=8)
     confirm_password: str = Field(min_length=8)
     
@@ -26,7 +25,7 @@ class user(BaseModel):
 class UserResponse(BaseModel):
     name: str
     email: EmailStr
-    pfp: str
+    pfp: Optional[str] = None
     hosted_pools:  list[pool] = []
 
 

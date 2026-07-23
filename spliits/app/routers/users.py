@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File
 from app import schemas, models,db,app
 from sqlalchemy.orm import session
 from app.security.hash_password import hash_password
@@ -8,6 +8,7 @@ from fastapi.responses import RedirectResponse
 from uuid import UUID
 from ..models.users import User
 from ..policy.policy_engine import require_scope
+from app.utils.s3 import upload_to_s3,delete_from_s3
 router = APIRouter(tags=['users'])
 
 def build_scopes(user: User):
@@ -118,4 +119,32 @@ def get_user(db: session = Depends(db.get_db), current_user = Depends(get_curren
         app.logger.warning(f'No User Exists: {current_user.user_id}')
         raise app.NoUserExists
     return user
+
+@router.post('/uploadpfp')
+async def upload_pfp(file: UploadFile = File(...), db: session = Depends(db.get_db), current_user = Depends(get_current_active_user1)):
+    try:
+        get_user = (
+            db.query(models.users.User)
+            .filter(models.users.User.user_id == current_user.user_id)
+            .first()
+        )
+        if not get_user:
+            app.logger.warning(f'No User Exists: {current_user.user_id}')
+            raise app.NoUserExists
+        
+        if file.content_type not in ["image/jpeg", "image/png"]:
+            raise HTTPException(status_code=400, detail={'Message': 'Invalid file type. Only JPEG, PNG are allowed.'})
+        if get_user.pfp is not None:
+            delete_from_s3(get_user.pfp)
+        url = await upload_to_s3(file, str(get_user.user_id))
+        get_user.pfp = url
+        db.commit()
+        db.refresh(get_user)
+        return {"message": "Profile picture uploaded successfully.", "pfp_url": get_user.pfp}
+    except app.NoUserExists:
+        raise
+    except Exception:
+        app.logger.exception(f'Error uploading profile picture for user: {current_user.user_id}')
+        db.rollback()
+        raise HTTPException(status_code=500, detail={'Message': 'Error uploading profile picture'})
 
