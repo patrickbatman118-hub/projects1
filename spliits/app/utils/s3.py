@@ -1,11 +1,11 @@
 import boto3
 from botocore.exceptions import ClientError, BotoCoreError
 from uuid import uuid4
-from app.app import logger
 from fastapi import UploadFile,HTTPException
 import os
 s3 = boto3.client('s3', region_name="ap-south-2")
-
+import logging
+logger = logging.getLogger(__name__)
 
 async def upload_to_s3(file: UploadFile, user_id: str):
     try:

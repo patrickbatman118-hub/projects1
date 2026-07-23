@@ -135,7 +135,7 @@ async def upload_pfp(file: UploadFile = File(...), db: session = Depends(db.get_
         if file.content_type not in ["image/jpeg", "image/png"]:
             raise HTTPException(status_code=400, detail={'Message': 'Invalid file type. Only JPEG, PNG are allowed.'})
         if get_user.pfp is not None:
-            delete_from_s3(get_user.pfp)
+            await delete_from_s3(get_user.pfp)
         url = await upload_to_s3(file, str(get_user.user_id))
         get_user.pfp = url
         db.commit()
