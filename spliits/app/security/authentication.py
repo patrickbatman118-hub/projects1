@@ -75,7 +75,7 @@ def refersh_token(refresh_token: str, db: session = Depends(db.get_db)):
         app.logger.warning(f"rejected token: revoked jti={jti}")
         raise HTTPException(status_code=401, detail="Token has been revoked")
     user_id = payload['sub']
-    access_token = create_access_token(data={"sub": user_id, "scopes": "user"})
+    access_token = create_access_token(data={"sub": user_id})
     return {'acces_token': access_token, 'token_type': 'bearer'}
 
 
@@ -88,7 +88,9 @@ def signout(access_token: str,refresh_token: str, response: Response,   db: sess
         jti2 = payload_refresh['jti']
         user_id = payload["sub"]
         exp = payload['exp']
-        revoke_jti(jti1,exp)
+        now = int(datetime.now(timezone.utc).timestamp())
+        access_token_exp = max((exp - now), 0)
+        revoke_jti(jti1,access_token_exp)
         db.add(revoked_tokens(jti=jti2, user_id=user_id, reason="logout"))
         db.commit()
         app.logger.info(f"logout: user={user_id} jti1={uuid.UUID(jti1)} jti2={uuid.UUID(jti2)} revoked")
