@@ -26,7 +26,7 @@ redis_client = redis.Redis(
 
 def revoke_jti(jti: str, remaining_seconds: int):
     try:
-        redis_client.set(f"revoked:{jti}", "1", ex=remaining_seconds)
+        redis_client.set(f"revoked:{jti}", "1", exat=remaining_seconds)
     except redis.exceptions.ConnectionError:
         app.logger.critical("Redis unreachable during revocation")
         raise HTTPException(status_code=503, detail="Service temporarily unavailable")
@@ -73,9 +73,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: session = Depends(
         if user.disabled:
             app.logger.info(f'User disabled: {user.user_id}')
             raise app.InvalidCredentials
-        if is_revoked:
-            app.logger.warning(f"rejected token: revoked jti={jti}")
-            raise HTTPException(status_code=401, detail="Token has been revoked")
         return CurrentUser(payload)
     except (HTTPException,app.InvalidCredentials):
         raise    
