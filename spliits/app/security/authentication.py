@@ -88,9 +88,7 @@ def signout(access_token: str,refresh_token: str, response: Response,   db: sess
         jti2 = payload_refresh['jti']
         user_id = payload["sub"]
         exp = payload['exp']
-        now = int(datetime.now(timezone.utc).timestamp())
-        access_token_exp = max((exp - now), 0)
-        revoke_jti(jti1,access_token_exp)
+        revoke_jti(jti1,exp)
         db.add(revoked_tokens(jti=jti2, user_id=user_id, reason="logout"))
         db.commit()
         app.logger.info(f"logout: user={user_id} jti1={uuid.UUID(jti1)} jti2={uuid.UUID(jti2)} revoked")
