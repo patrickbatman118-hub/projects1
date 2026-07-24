@@ -2,14 +2,28 @@
 
 A personal backend API built with FastAPI and PostgreSQL, fully containerized using Docker. The project also integrates Redis for JWT token revocation checks and Apache Airflow for ETL workflows.
 
+This branch (`aws-deployment`) contains the specific configuration and architecture for deploying the application on AWS.
+
+---
+
+## AWS Deployment Architecture
+
+- **Compute**: FastAPI and Redis run in Docker containers on an AWS EC2 instance (e.g., `t3.micro`).
+- **Database**: PostgreSQL runs on AWS RDS (managed database), replacing the local Docker database containers (`db` and `airflow-db`).
+- **Storage**: AWS S3 is used to store and serve user profile pictures publicly.
+- **Permissions**: IAM roles attached to the EC2 instance are used for secure S3 access (no hardcoded keys in `.env`).
+
 ---
 
 # Prerequisites
 
-Before running this project, make sure you have the following installed:
+Before running this project, make sure you have the following installed or configured:
 
 - Git
-- Docker Desktop (includes Docker Compose)
+- Docker installed on the host machine (EC2 instance)
+- AWS RDS (PostgreSQL 16) instance running in a VPC
+- AWS S3 bucket configured for public read access
+- AWS EC2 instance with an appropriate IAM role attached for S3 access
 
 ---
 
@@ -20,78 +34,65 @@ Before running this project, make sure you have the following installed:
 ```bash
 git clone https://github.com/patrickbatman118-hub/projects1.git
 cd projects1/spliits
+git checkout aws-deployment
 ```
 
 ---
 
 ## 2. Configure Environment Variables
 
-Create a `.env` file in the project root and configure the required environment variables.
+Create a `.env` file in the project root. Ensure you use your AWS RDS endpoints.
 
 ### API Database
 
 ```env
 POSTGRES_USER=my_user
 POSTGRES_PASSWORD=my_password
-POSTGRES_DB=my_database
+POSTGRES_DB=spliits
 
-DATABASE_URL=postgresql://my_user:my_password@db:5432/my_database
-DATABASE_URL1=postgresql://my_user:my_password@db:5432/my_database
+# Point this to your AWS RDS endpoint
+DATABASE_URL=postgresql://my_user:my_password@<rds-endpoint>:5432/spliits
 
 SECRET_KEY=my_secret_key
 ALGORITHM=HS256
+REDIS_HOST=redis
 ```
 
-### Airflow Database
+### Airflow Database (Optional)
 
 ```env
-AIRFLOW_POSTGRES_USER=airflow
-AIRFLOW_POSTGRES_PASSWORD=airflow
+AIRFLOW_POSTGRES_USER=my_user
+AIRFLOW_POSTGRES_PASSWORD=my_password
 AIRFLOW_POSTGRES_DB=airflow
 
-AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-db/airflow
-```
-
-### Airflow Admin
-
-```env
-AIRFLOW_ADMIN_USERNAME=admin
-AIRFLOW_ADMIN_PASSWORD=admin
-AIRFLOW_ADMIN_EMAIL=admin@example.com
-AIRFLOW_ADMIN_FIRSTNAME=Admin
-AIRFLOW_ADMIN_LASTNAME=User
+# Point this to your AWS RDS endpoint (ensure the airflow database is created)
+AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://my_user:my_password@<rds-endpoint>/airflow
 ```
 
 ---
 
 ## 3. Build and Start the Services
 
-Build all containers and start the application.
+Build the containers and start the application.
 
 ```bash
 docker compose up -d --build
 ```
 
 This starts the following services:
-
 - FastAPI API
-- PostgreSQL
 - Redis
-- Airflow PostgreSQL
-- Airflow Initialization
-- Airflow Scheduler
-- Airflow Webserver
 
-The API automatically waits until the PostgreSQL database is healthy before starting.
+*Note: Airflow services are commented out by default in the `aws-deployment` branch because a `t3.micro` EC2 instance (1GB RAM) is not sufficient to run them alongside the API and Redis. A minimum of `t3.medium` is recommended if you wish to enable Airflow.*
 
 ---
 
 ## 4. Apply Database Migrations
 
-Run the latest Alembic migrations.
+Run the latest Alembic migrations against the RDS database. 
 
 ```bash
-docker compose exec api alembic upgrade head
+docker compose exec api uv run alembic upgrade head
 ```
 
 ---
@@ -108,24 +109,31 @@ docker compose ps
 
 | Service | URL |
 |----------|-----|
-| FastAPI API | http://localhost:8000 |
-| Swagger UI | http://localhost:8000/docs |
-| ReDoc | http://localhost:8000/redoc |
-| Airflow Web UI | http://localhost:8080 |
+| FastAPI API | `http://<ec2-public-ip>:8000` |
+| Swagger UI | `http://<ec2-public-ip>:8000/docs` |
+| ReDoc | `http://<ec2-public-ip>:8000/redoc` |
 
 ---
 
-# Connecting to PostgreSQL
+# AWS Specific Setup
 
-To connect using DBeaver, pgAdmin, or another PostgreSQL client:
+## S3 Profile Pictures
+User profile pictures are uploaded directly to an AWS S3 bucket.
+- **Permissions**: The EC2 instance must have an IAM role attached with S3 access (e.g., an `AmazonS3FullAccess` policy or a restricted equivalent). This allows the FastAPI application's `boto3` client to upload and delete files without needing AWS access keys configured in the `.env` file.
+- **Bucket Policy**: The bucket must have "Block all public access" turned off, and a bucket policy allowing `s3:GetObject` for `*` must be attached so images can be viewed publicly via their URL.
+
+## Connecting to RDS PostgreSQL
+
+To connect using DBeaver, pgAdmin, or another PostgreSQL client, you must connect from within the VPC (e.g., via the EC2 instance), as public access is typically disabled.
+You can use SSH tunneling through your EC2 instance to access the RDS database from your local machine.
 
 | Property | Value |
 |----------|-------|
-| Host | localhost |
-| Port | 5433 |
+| Host | `<rds-endpoint>` |
+| Port | 5432 |
 | Username | Value from `.env` |
 | Password | Value from `.env` |
-| Database | Value from `.env` |
+| Database | `spliits` or `airflow` |
 
 ---
 
@@ -133,23 +141,7 @@ To connect using DBeaver, pgAdmin, or another PostgreSQL client:
 
 Redis is used to cache revoked JWT tokens, allowing the API to validate revoked access tokens efficiently during authenticated requests.
 
-Redis is available on:
-
-```
-localhost:6379
-```
-
----
-
-# Apache Airflow
-
-Apache Airflow is used for ETL workflows.
-
-The Airflow web interface is available at:
-
-```
-http://localhost:8080
-```
+Redis is available internally on the EC2 instance within the Docker network at `redis:6379`.
 
 ---
 
@@ -159,16 +151,4 @@ Stop all running containers.
 
 ```bash
 docker compose down
-```
-
-Database volumes are preserved, so your data will remain available the next time you start the project.
-
----
-
-# Rebuilding the Containers
-
-If you modify dependencies or the Docker configuration, rebuild the containers with:
-
-```bash
-docker compose up -d --build
 ```
